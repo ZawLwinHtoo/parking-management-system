@@ -9,6 +9,7 @@ public class SlotDto {
     private Boolean isAvailable;
     private Long buildingId;    // Only ID for reference
     private String buildingName;
+    private Integer floor;
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -34,4 +35,7 @@ public class SlotDto {
 
     public String getBuildingName() { return buildingName; }
     public void setBuildingName(String buildingName) { this.buildingName = buildingName; }
+
+    public Integer getFloor() { return floor; }
+    public void setFloor(Integer floor) { this.floor = floor; }
 }
