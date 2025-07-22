@@ -12,33 +12,37 @@ export default function UnparkTable({ activeList, onUnpark }) {
   }
 
   if (!activeList.length) {
-    return <p>No cars currently parked.</p>
-  }
+  return <div className="alert alert-info">No cars currently parked.</div>
+}
 
-  return (
-    <table border="1" cellSpacing="0" cellPadding="8" style={{ marginBottom: '20px' }}>
-      <thead>
-        <tr>
-          <th>Car Number</th>
-          <th>Slot</th>
-          <th>Entry Time</th>
-          <th>Action</th>
+return (
+  <table className="table table-dark table-striped table-bordered mb-3">
+    <thead className="table-dark">
+      <tr>
+        <th>Car Number</th>
+        <th>Slot</th>
+        <th>Entry Time</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {activeList.map(item => (
+        <tr key={item.parkedId}>
+          <td>{item.carNumber}</td>
+          <td>{item.slotNumber}</td>
+          <td>{new Date(item.entryTime).toLocaleString()}</td>
+          <td>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => handleUnpark(item.carNumber)}
+            >
+              Unpark
+            </button>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {activeList.map(item => (
-          <tr key={item.parkedId}>
-            <td>{item.carNumber}</td>
-            <td>{item.slotNumber}</td>
-            <td>{new Date(item.entryTime).toLocaleString()}</td>
-            <td>
-              <button onClick={() => handleUnpark(item.carNumber)}>
-                Unpark
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
+      ))}
+    </tbody>
+  </table>
+)
+
 }

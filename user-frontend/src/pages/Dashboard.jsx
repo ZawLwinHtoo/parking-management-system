@@ -28,39 +28,48 @@ export default function Dashboard() {
   useEffect(() => {
     fetchActive()
     fetchHistory()
+    // eslint-disable-next-line
   }, [])
 
   return (
-    <div>
+    <div className="bg-dark text-light min-vh-100">
       <Header />
-      <div style={{ padding: '20px' }}>
-        <p>Welcome, {user.fullName || user.username}</p>
+      <div className="container py-4">
+        <div className="row justify-content-center">
+          <div className="col-lg-8">
+            <div className="card bg-secondary text-light shadow p-4 mb-4">
+              <h2 className="mb-4 text-center">
+                Welcome, <span className="fw-bold">{user.fullName || user.username}</span>
+              </h2>
 
-        <section>
-          <h2>Park My Car</h2>
-          <ParkForm
-            userId={userId}
-            onSuccess={() => { fetchActive(); fetchHistory() }}
-          />
-        </section>
+              <section className="mb-4">
+                <h4 className="mb-3">Park My Car</h4>
+                <ParkForm
+                  userId={userId}
+                  onSuccess={() => { fetchActive(); fetchHistory() }}
+                />
+              </section>
 
-        <section>
-          <h2>Unpark My Car</h2>
-          <UnparkTable
-            activeList={activeList}
-            onUnpark={() => { fetchActive(); fetchHistory() }}
-          />
-        </section>
+              <section className="mb-4">
+                <h4 className="mb-3">Unpark My Car</h4>
+                <UnparkTable
+                  activeList={activeList}
+                  onUnpark={() => { fetchActive(); fetchHistory() }}
+                />
+              </section>
 
-        <section>
-          <h2>My Active Parking Status</h2>
-          <ActiveStatus activeList={activeList} />
-        </section>
+              <section className="mb-4">
+                <h4 className="mb-3">My Active Parking Status</h4>
+                <ActiveStatus activeList={activeList} />
+              </section>
 
-        <section>
-          <h2>My Parking History</h2>
-          <HistoryTable historyList={historyList} />
-        </section>
+              <section>
+                <h4 className="mb-3">My Parking History</h4>
+                <HistoryTable historyList={historyList} />
+              </section>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
