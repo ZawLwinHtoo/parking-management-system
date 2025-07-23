@@ -75,21 +75,21 @@ export default function ParkForm({ userId, onSuccess }) {
               <Col xs={3} sm={2} md={2} lg={1} key={slot.id} className="mb-2">
                 <Button
                   variant={
-                    slot.isOccupied
+                    slot.occupied
                       ? "danger"
                       : selectedSlotId === slot.id
                       ? "primary"
                       : "success"
                   }
-                  disabled={slot.isOccupied}
+                  disabled={slot.occupied}
                   onClick={() => setSelectedSlotId(slot.id)}
                   className="w-100"
                   style={{ minWidth: 60, fontWeight: 600, position: "relative" }}
                 >
                   {slot.slotNumber}
-                  {slot.isOccupied && (
+                  {slot.occupied && (
                     <div style={{ fontSize: 10, lineHeight: "12px" }}>
-                      <b>Occupied</b>
+                      
                     </div>
                   )}
                 </Button>
