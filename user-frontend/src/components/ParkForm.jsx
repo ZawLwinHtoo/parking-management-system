@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getBuildings, getSlotsByBuilding, parkCar } from "../api/parking";
-import { Button, Form, Row, Col } from "react-bootstrap";
+import { Button, Form, Row, Col, Spinner } from "react-bootstrap";
 
 export default function ParkForm({ userId, onSuccess }) {
   const [buildings, setBuildings] = useState([]);
@@ -65,7 +65,12 @@ export default function ParkForm({ userId, onSuccess }) {
         <>
           <Form.Label>Choose Slot</Form.Label>
           <Row className="mb-3">
-            {loadingSlots && <div className="text-info">Loading slots...</div>}
+            {loadingSlots && (
+              <Col>
+                <Spinner animation="border" size="sm" className="me-2" />
+                <span className="text-info">Loading slots...</span>
+              </Col>
+            )}
             {slots.map((slot) => (
               <Col xs={3} sm={2} md={2} lg={1} key={slot.id} className="mb-2">
                 <Button
@@ -79,9 +84,14 @@ export default function ParkForm({ userId, onSuccess }) {
                   disabled={slot.isOccupied}
                   onClick={() => setSelectedSlotId(slot.id)}
                   className="w-100"
-                  style={{ minWidth: 60, fontWeight: 600 }}
+                  style={{ minWidth: 60, fontWeight: 600, position: "relative" }}
                 >
                   {slot.slotNumber}
+                  {slot.isOccupied && (
+                    <div style={{ fontSize: 10, lineHeight: "12px" }}>
+                      <b>Occupied</b>
+                    </div>
+                  )}
                 </Button>
               </Col>
             ))}
