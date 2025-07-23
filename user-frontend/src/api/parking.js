@@ -15,7 +15,7 @@ parkingApi.interceptors.request.use(config => {
 
 /**
  * Park a car.
- * @param {{ userId: number, carNumber: string, carModel: string, slotType: string, image?: string }} req
+ * @param {{ userId: number, carNumber: string, carModel: string, slotId: number }} req
  */
 export function parkCar(req) {
   return parkingApi.post('/park', req)
@@ -28,6 +28,15 @@ export function parkCar(req) {
 export function unparkCar(req) {
   return parkingApi.post('/unpark', req)
 }
+export function getBuildings() {
+  return parkingApi.get('/buildings');
+}
+
+export function getSlotsByBuilding(buildingId) {
+  return axios.get(`http://localhost:8080/api/slot/building/${buildingId}`);
+}
+
+
 
 /**
  * Fetch currently parked cars for user.

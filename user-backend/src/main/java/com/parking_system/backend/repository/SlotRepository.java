@@ -10,4 +10,7 @@ public interface SlotRepository extends JpaRepository<Slot, Integer> {
     Optional<Slot> findFirstByIsOccupiedFalseAndSlotType(SlotType slotType);
     List<Slot> findByIsOccupiedFalse();
     List<Slot> findByIsOccupiedTrue();
+    // Use this for JPA relation
+    List<Slot> findByBuilding_Id(Integer buildingId);
+
 }

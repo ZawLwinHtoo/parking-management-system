@@ -1,9 +1,7 @@
 package com.parking_system.backend.service;
 
-import com.parking_system.backend.dto.ParkRequest;
-import com.parking_system.backend.dto.UnparkRequest;
-import com.parking_system.backend.dto.ActiveDto;
-import com.parking_system.backend.dto.HistoryDto;
+import com.parking_system.backend.dto.*;
+
 import java.util.List;
 
 public interface ParkingService {
@@ -11,4 +9,8 @@ public interface ParkingService {
     HistoryDto unpark(UnparkRequest request);
     List<ActiveDto> getActiveStatus(Integer userId);
     List<HistoryDto> getHistory(Integer userId);
+
+    List<SlotDto> getSlotsByBuilding(Integer buildingId);
+
+    List<BuildingDto> getAllBuildings();
 }

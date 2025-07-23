@@ -1,12 +1,8 @@
 package com.parking_system.backend.controller;
 
+import com.parking_system.backend.dto.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.parking_system.backend.dto.ParkRequest;
-import com.parking_system.backend.dto.UnparkRequest;
-import com.parking_system.backend.dto.ActiveDto;
-import com.parking_system.backend.dto.HistoryDto;
 import com.parking_system.backend.service.ParkingService;
 import java.util.List;
 
@@ -24,6 +20,7 @@ public class ParkingController {
         return ResponseEntity.ok(result);
     }
 
+
     @PostMapping("/unpark")
     public ResponseEntity<HistoryDto> unpark(@RequestBody UnparkRequest req) {
         HistoryDto result = parkingService.unpark(req);
@@ -39,4 +36,19 @@ public class ParkingController {
     public ResponseEntity<List<HistoryDto>> history(@RequestParam Integer userId) {
         return ResponseEntity.ok(parkingService.getHistory(userId));
     }
+
+    // ParkingController.java
+
+    @GetMapping("/buildings")
+    public ResponseEntity<List<BuildingDto>> getBuildings() {
+        return ResponseEntity.ok(parkingService.getAllBuildings());
+    }
+
+    @GetMapping("/slots")
+    public ResponseEntity<List<SlotDto>> getSlotsByBuilding(@RequestParam Integer buildingId) {
+        return ResponseEntity.ok(parkingService.getSlotsByBuilding(buildingId));
+    }
+
+
+
 }

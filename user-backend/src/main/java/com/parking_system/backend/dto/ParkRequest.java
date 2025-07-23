@@ -7,6 +7,7 @@ public class ParkRequest {
     private Integer userId;
     private String carNumber;
     private String carModel;
-    private String slotType; // SMALL, MEDIUM, LARGE
+    private String slotType;  // SMALL, MEDIUM, LARGE
+    private Integer slotId;
     private String image;    // optional image URL
 }

@@ -28,47 +28,51 @@ export default function Dashboard() {
   useEffect(() => {
     fetchActive()
     fetchHistory()
-    // eslint-disable-next-line
   }, [])
 
   return (
     <div className="bg-dark text-light min-vh-100">
       <Header />
-      <div className="container py-4">
-        <div className="row justify-content-center">
-          <div className="col-lg-8">
-            <div className="card bg-secondary text-light shadow p-4 mb-4">
-              <h2 className="mb-4 text-center">
-                Welcome, <span className="fw-bold">{user.fullName || user.username}</span>
-              </h2>
-
-              <section className="mb-4">
-                <h4 className="mb-3">Park My Car</h4>
-                <ParkForm
-                  userId={userId}
-                  onSuccess={() => { fetchActive(); fetchHistory() }}
-                />
-              </section>
-
-              <section className="mb-4">
-                <h4 className="mb-3">Unpark My Car</h4>
-                <UnparkTable
-                  activeList={activeList}
-                  onUnpark={() => { fetchActive(); fetchHistory() }}
-                />
-              </section>
-
-              <section className="mb-4">
-                <h4 className="mb-3">My Active Parking Status</h4>
-                <ActiveStatus activeList={activeList} />
-              </section>
-
-              <section>
-                <h4 className="mb-3">My Parking History</h4>
-                <HistoryTable historyList={historyList} />
-              </section>
-            </div>
+      <div className="container py-4 d-flex flex-column align-items-center">
+        <div className="w-100" style={{ maxWidth: '900px' }}>
+          <div className="text-center mb-4">
+            <h1 className="fw-bold">Parking Dashboard</h1>
+            <p className="lead mb-1">
+              Welcome, <b>{user.fullName || user.username}</b>
+            </p>
           </div>
+
+          <section className="mb-5">
+            <h3 className="mb-3">Park Your Car</h3>
+            <ParkForm
+              userId={userId}
+              onSuccess={() => {
+                fetchActive()
+                fetchHistory()
+              }}
+            />
+          </section>
+
+          <section className="mb-5">
+            <h3 className="mb-3">Unpark My Car</h3>
+            <UnparkTable
+              activeList={activeList}
+              onUnpark={() => {
+                fetchActive()
+                fetchHistory()
+              }}
+            />
+          </section>
+
+          <section className="mb-4">
+            <h3 className="mb-3">Active Parking Status</h3>
+            <ActiveStatus activeList={activeList} />
+          </section>
+
+          <section>
+            <h3 className="mb-3">Parking History</h3>
+            <HistoryTable historyList={historyList} />
+          </section>
         </div>
       </div>
     </div>
