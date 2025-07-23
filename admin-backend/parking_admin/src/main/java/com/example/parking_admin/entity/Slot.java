@@ -3,7 +3,7 @@ package com.example.parking_admin.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "slots")
+@Table(name = "slots", uniqueConstraints = @UniqueConstraint(columnNames = {"building_id", "slot_number"}))
 public class Slot {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,6 +27,10 @@ public class Slot {
     @Column(name = "is_available")
     private Boolean isAvailable;
 
+    @Column(name = "floor")
+    private Integer floor;
+
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -48,4 +52,7 @@ public class Slot {
 
     public Boolean getIsAvailable() { return isAvailable; }
     public void setIsAvailable(Boolean isAvailable) { this.isAvailable = isAvailable; }
+
+    public Integer getFloor() { return floor; }
+    public void setFloor(Integer floor) { this.floor = floor; }
 }

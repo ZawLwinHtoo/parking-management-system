@@ -34,7 +34,26 @@ public class SlotController {
     public SlotDto addSlot(@RequestBody SlotDto slotDto) {
         Building building = buildingRepository.findById(slotDto.getBuildingId())
                 .orElseThrow(() -> new RuntimeException("Building not found"));
+
+        // Check if slot count is already 30
+        long count = slotRepository.countByBuildingId(building.getId());
+        if (count >= 30)
+            throw new RuntimeException("Cannot add more than 30 slots to a building!");
+
+        // 1. Check slot number format S1–S30
+        if (!slotDto.getSlotNumber().matches("S([1-9]|[12][0-9]|30)")) {
+            throw new RuntimeException("Slot number must be S1 to S30");
+        }
+
+        // 2. Check if this slot number already exists for this building
+        boolean exists = slotRepository.existsBySlotNumberAndBuildingId(
+                slotDto.getSlotNumber(), slotDto.getBuildingId()
+        );
+        if (exists)
+            throw new RuntimeException("Slot number already exists for this building!");
+
         Slot slot = SlotMapper.toEntity(slotDto, building);
+        slot.setFloor(SlotMapper.calculateFloorFromSlotNumber(slot.getSlotNumber()));
         Slot saved = slotRepository.save(slot);
         return SlotMapper.toDto(saved);
     }
@@ -51,6 +70,7 @@ public class SlotController {
         slot.setLocation(slotDto.getLocation());
         slot.setIsAvailable(slotDto.getIsAvailable());
         slot.setBuilding(building);
+        slot.setFloor(SlotMapper.calculateFloorFromSlotNumber(slot.getSlotNumber()));
         Slot updated = slotRepository.save(slot);
         return SlotMapper.toDto(updated);
     }
