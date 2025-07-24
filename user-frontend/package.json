@@ -8,12 +8,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/drei": "^9.121.5",
+    "@react-three/fiber": "^8.13.5",
     "axios": "^1.4.0",
     "bootstrap": "^5.3.7",
     "react": "^18.2.0",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.14.1"
+    "react-router-dom": "^6.14.1",
+    "three": "^0.152.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",

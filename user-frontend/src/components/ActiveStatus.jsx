@@ -2,25 +2,27 @@ import React from 'react'
 
 export default function ActiveStatus({ activeList }) {
   if (!activeList.length) {
-    return <p>No active parking sessions.</p>
+    return <div className="alert alert-secondary text-center mb-0">No active parking sessions.</div>
   }
 
   return (
-    <table border="1" cellSpacing="0" cellPadding="8" style={{ marginBottom: '20px' }}>
-      <thead>
-        <tr>
-          <th>Slot #</th>
-          <th>Car Number</th>
-        </tr>
-      </thead>
-      <tbody>
-        {activeList.map(item => (
-          <tr key={item.parkedId}>
-            <td>{item.slotNumber}</td>
-            <td>{item.carNumber}</td>
+    <div className="table-responsive">
+      <table className="table table-dark table-striped table-bordered mb-0">
+        <thead>
+          <tr>
+            <th>Slot #</th>
+            <th>Car Number</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {activeList.map(item => (
+            <tr key={item.parkedId}>
+              <td>{item.slotNumber}</td>
+              <td>{item.carNumber}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

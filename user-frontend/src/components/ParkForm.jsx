@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getBuildings, getSlotsByBuilding, parkCar } from "../api/parking";
-import { Button, Form, Row, Col, Spinner } from "react-bootstrap";
+import { Button, Form } from "react-bootstrap";
+import Parking3DSelector from "./Parking3DSelector";
 
 export default function ParkForm({ userId, onSuccess }) {
   const [buildings, setBuildings] = useState([]);
@@ -9,7 +10,6 @@ export default function ParkForm({ userId, onSuccess }) {
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [carNumber, setCarNumber] = useState("");
   const [error, setError] = useState("");
-  const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
     getBuildings().then((res) => setBuildings(res.data));
@@ -17,10 +17,8 @@ export default function ParkForm({ userId, onSuccess }) {
 
   useEffect(() => {
     if (selectedBuilding) {
-      setLoadingSlots(true);
       getSlotsByBuilding(selectedBuilding)
-        .then((res) => setSlots(res.data))
-        .finally(() => setLoadingSlots(false));
+        .then((res) => setSlots(res.data));
       setSelectedSlotId(null);
     }
   }, [selectedBuilding]);
@@ -43,6 +41,12 @@ export default function ParkForm({ userId, onSuccess }) {
     }
   };
 
+  // 🔥 Add floor property before passing to 3D
+  const slotsWithFloor = slots.map(slot => ({
+    ...slot,
+    floor: Number(slot.slotNumber.match(/F(\d+)/)?.[1] || 1)
+  }));
+
   return (
     <Form onSubmit={handleSubmit} className="mb-3 bg-secondary p-4 rounded shadow">
       <Form.Group className="mb-3">
@@ -54,53 +58,20 @@ export default function ParkForm({ userId, onSuccess }) {
         >
           <option value="">-- Choose Building --</option>
           {buildings.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
+            <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </Form.Select>
       </Form.Group>
 
       {selectedBuilding && (
         <>
-          <Form.Label>Choose Slot</Form.Label>
-          <Row className="mb-3">
-            {loadingSlots && (
-              <Col>
-                <Spinner animation="border" size="sm" className="me-2" />
-                <span className="text-info">Loading slots...</span>
-              </Col>
-            )}
-            {slots.map((slot) => (
-              <Col xs={3} sm={2} md={2} lg={1} key={slot.id} className="mb-2">
-                <Button
-                  variant={
-                    slot.occupied
-                      ? "danger"
-                      : selectedSlotId === slot.id
-                      ? "primary"
-                      : "success"
-                  }
-                  disabled={slot.occupied}
-                  onClick={() => setSelectedSlotId(slot.id)}
-                  className="w-100"
-                  style={{ minWidth: 60, fontWeight: 600, position: "relative" }}
-                >
-                  {slot.slotNumber}
-                  {slot.occupied && (
-                    <div style={{ fontSize: 10, lineHeight: "12px" }}>
-                      
-                    </div>
-                  )}
-                </Button>
-              </Col>
-            ))}
-            {slots.length === 0 && !loadingSlots && (
-              <Col>
-                <span className="text-warning">No slots found for this building.</span>
-              </Col>
-            )}
-          </Row>
+          <Form.Label>Choose Slot (3D view)</Form.Label>
+          <Parking3DSelector
+            slots={slotsWithFloor}
+            buildingName={buildings.find(b => b.id === Number(selectedBuilding))?.name}
+            selectedSlotId={selectedSlotId}
+            onSelectSlot={setSelectedSlotId}
+          />
         </>
       )}
 
