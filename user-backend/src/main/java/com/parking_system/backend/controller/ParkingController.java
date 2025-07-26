@@ -20,7 +20,6 @@ public class ParkingController {
         return ResponseEntity.ok(result);
     }
 
-
     @PostMapping("/unpark")
     public ResponseEntity<HistoryDto> unpark(@RequestBody UnparkRequest req) {
         HistoryDto result = parkingService.unpark(req);
@@ -37,8 +36,6 @@ public class ParkingController {
         return ResponseEntity.ok(parkingService.getHistory(userId));
     }
 
-    // ParkingController.java
-
     @GetMapping("/buildings")
     public ResponseEntity<List<BuildingDto>> getBuildings() {
         return ResponseEntity.ok(parkingService.getAllBuildings());
@@ -49,6 +46,13 @@ public class ParkingController {
         return ResponseEntity.ok(parkingService.getSlotsByBuilding(buildingId));
     }
 
-
-
+    @PostMapping("/verify-key")
+    public ResponseEntity<?> verifyKey(@RequestBody KeyVerifyRequest req) {
+        String result = parkingService.verifySlotKey(req.getUserId(), req.getSlotId(), req.getKey());
+        if ("success".equals(result)) {
+            return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Slot unlocked. Welcome!"));
+        } else {
+            return ResponseEntity.ok(java.util.Map.of("success", false, "message", result));
+        }
+    }
 }

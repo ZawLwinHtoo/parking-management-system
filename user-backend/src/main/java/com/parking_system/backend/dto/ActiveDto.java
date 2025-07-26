@@ -10,4 +10,5 @@ public class ActiveDto {
     private String slotNumber;
     private String buildingName; // <-- Add this!
     private LocalDateTime entryTime;
+    private String key;
 }

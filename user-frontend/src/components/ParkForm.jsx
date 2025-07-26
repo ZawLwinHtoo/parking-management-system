@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getBuildings, getSlotsByBuilding, parkCar } from "../api/parking";
-import { Button, Form } from "react-bootstrap";
+import { Button, Form, Modal } from "react-bootstrap";
 import Parking3DSelector from "./Parking3DSelector";
 
 export default function ParkForm({ userId, onSuccess }) {
@@ -11,14 +11,19 @@ export default function ParkForm({ userId, onSuccess }) {
   const [carNumber, setCarNumber] = useState("");
   const [error, setError] = useState("");
 
+  // Modal state
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [slotKey, setSlotKey] = useState("");
+  const [slotNumber, setSlotNumber] = useState("");
+  const [buildingName, setBuildingName] = useState("");
+
   useEffect(() => {
     getBuildings().then((res) => setBuildings(res.data));
   }, []);
 
   useEffect(() => {
     if (selectedBuilding) {
-      getSlotsByBuilding(selectedBuilding)
-        .then((res) => setSlots(res.data));
+      getSlotsByBuilding(selectedBuilding).then((res) => setSlots(res.data));
       setSelectedSlotId(null);
     }
   }, [selectedBuilding]);
@@ -27,15 +32,25 @@ export default function ParkForm({ userId, onSuccess }) {
     e.preventDefault();
     setError("");
     try {
-      await parkCar({
+      const res = await parkCar({
         userId,
         carNumber,
         slotId: selectedSlotId,
       });
+
+      // Extract key, slot info from backend response (ActiveDto)
+      const { key, slotNumber, buildingName } = res.data;
+
+      setSlotKey(key);
+      setSlotNumber(slotNumber);
+      setBuildingName(buildingName);
+      setShowKeyModal(true);
+
+      // Reset form
       setCarNumber("");
       setSelectedSlotId(null);
       setSelectedBuilding("");
-      onSuccess();
+      onSuccess && onSuccess();
     } catch (err) {
       setError(err.response?.data?.message || "Park failed");
     }
@@ -48,51 +63,75 @@ export default function ParkForm({ userId, onSuccess }) {
   }));
 
   return (
-    <Form onSubmit={handleSubmit} className="mb-3 bg-secondary p-4 rounded shadow">
-      <Form.Group className="mb-3">
-        <Form.Label>Select Building</Form.Label>
-        <Form.Select
-          value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
-          required
-        >
-          <option value="">-- Choose Building --</option>
-          {buildings.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </Form.Select>
-      </Form.Group>
+    <>
+      <Form onSubmit={handleSubmit} className="mb-3 bg-secondary p-4 rounded shadow">
+        <Form.Group className="mb-3">
+          <Form.Label>Select Building</Form.Label>
+          <Form.Select
+            value={selectedBuilding}
+            onChange={(e) => setSelectedBuilding(e.target.value)}
+            required
+          >
+            <option value="">-- Choose Building --</option>
+            {buildings.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </Form.Select>
+        </Form.Group>
 
-      {selectedBuilding && (
-        <>
-          <Form.Label>Choose Slot (3D view)</Form.Label>
-          <Parking3DSelector
-            slots={slotsWithFloor}
-            buildingName={buildings.find(b => b.id === Number(selectedBuilding))?.name}
-            selectedSlotId={selectedSlotId}
-            onSelectSlot={setSelectedSlotId}
+        {selectedBuilding && (
+          <>
+            <Form.Label>Choose Slot (3D view)</Form.Label>
+            <Parking3DSelector
+              slots={slotsWithFloor}
+              buildingName={buildings.find(b => b.id === Number(selectedBuilding))?.name}
+              selectedSlotId={selectedSlotId}
+              onSelectSlot={setSelectedSlotId}
+            />
+          </>
+        )}
+
+        <Form.Group className="mb-3">
+          <Form.Label>Car Number</Form.Label>
+          <Form.Control
+            value={carNumber}
+            onChange={(e) => setCarNumber(e.target.value)}
+            required
+            placeholder="e.g. YGN-1234"
           />
-        </>
-      )}
+        </Form.Group>
 
-      <Form.Group className="mb-3">
-        <Form.Label>Car Number</Form.Label>
-        <Form.Control
-          value={carNumber}
-          onChange={(e) => setCarNumber(e.target.value)}
-          required
-          placeholder="e.g. YGN-1234"
-        />
-      </Form.Group>
+        <Button
+          type="submit"
+          className="mt-2"
+          disabled={!selectedSlotId || !carNumber || !selectedBuilding}
+        >
+          Park
+        </Button>
+        {error && <p className="text-danger mt-2">{error}</p>}
+      </Form>
 
-      <Button
-        type="submit"
-        className="mt-2"
-        disabled={!selectedSlotId || !carNumber || !selectedBuilding}
-      >
-        Park
-      </Button>
-      {error && <p className="text-danger mt-2">{error}</p>}
-    </Form>
+      <Modal show={showKeyModal} onHide={() => setShowKeyModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Slot Entry Key</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center">
+          <h1 style={{ letterSpacing: "8px" }}>{slotKey}</h1>
+          <div className="my-2">
+            <b>Slot:</b> {slotNumber} <br />
+            <b>Building:</b> {buildingName}
+          </div>
+          <div className="my-2 text-warning">
+            <b>This key is valid for 5 minutes only!</b>
+          </div>
+          <div>Enter this code at the barrier to confirm your parking spot.</div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowKeyModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 }

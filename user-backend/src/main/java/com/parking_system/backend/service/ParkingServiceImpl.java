@@ -12,9 +12,9 @@ import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 import java.time.Duration;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.*;
 import java.math.BigDecimal;
+import java.util.stream.Collectors;
 
 @Service
 public class ParkingServiceImpl implements ParkingService {
@@ -23,9 +23,10 @@ public class ParkingServiceImpl implements ParkingService {
     @Autowired private ParkedCarRepository parkedCarRepo;
     @Autowired private ParkingRateRepository rateRepo;
     @Autowired private PaymentRepository paymentRepo;
-    @Autowired
-    private BuildingRepository buildingRepo;
-    // PARK
+    @Autowired private BuildingRepository buildingRepo;
+    @Autowired private SlotKeyRepository slotKeyRepo;
+
+    // PARK: generate one-time key and attach to ActiveDto
     @Override
     @Transactional
     public ActiveDto park(ParkRequest req) {
@@ -44,38 +45,47 @@ public class ParkingServiceImpl implements ParkingService {
         car.setCarNumber(req.getCarNumber());
         car.setSlot(slot);
         car.setEntryTime(LocalDateTime.now());
-        // carModel optional, leave blank or set if you add it to req
-        // car.setCarModel(req.getCarModel());
 
         // 4) Save slot as occupied and parked car
         slot.setIsOccupied(true);
         slotRepo.save(slot);
         ParkedCar saved = parkedCarRepo.save(car);
 
-        // 5) Prepare and return DTO
+        // 5) Generate and store 4-digit one-time key
+        String code = String.valueOf((int)(Math.random() * 9000) + 1000);
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
+
+        SlotKey slotKey = new SlotKey();
+        slotKey.setUserId(req.getUserId().longValue());
+        slotKey.setSlotId(req.getSlotId().longValue());
+        slotKey.setKeyCode(code);
+        slotKey.setExpiresAt(expiresAt);
+        slotKey.setUsed(false);
+        slotKeyRepo.save(slotKey);
+
+        // 6) Prepare and return DTO
         ActiveDto dto = new ActiveDto();
         dto.setParkedId(saved.getId());
         dto.setCarNumber(saved.getCarNumber());
         dto.setSlotNumber(slot.getSlotNumber());
         dto.setEntryTime(saved.getEntryTime());
         dto.setBuildingName(slot.getBuilding().getName());
+        dto.setKey(code); // One-time key for UI
+
         return dto;
     }
 
-    // UNPARK
+    // UNPARK: (existing logic unchanged)
     @Override
     @Transactional
     public HistoryDto unpark(UnparkRequest req) {
-        // 1) Find active parked car by car number
         ParkedCar car = parkedCarRepo.findByCarNumberAndExitTimeIsNull(req.getCarNumber())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active car not found: " + req.getCarNumber()));
 
-        // 2) Set exit time
         car.setExitTime(LocalDateTime.now());
         Duration dur = Duration.between(car.getEntryTime(), car.getExitTime());
         long hours = Math.max(1, dur.toHours());
 
-        // 3) Calculate fee
         BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
                 .getRatePerHour();
@@ -83,19 +93,16 @@ public class ParkingServiceImpl implements ParkingService {
         car.setFee(fee);
         parkedCarRepo.save(car);
 
-        // 4) Free slot
         Slot slot = car.getSlot();
         slot.setIsOccupied(false);
         slotRepo.save(slot);
 
-        // 5) Save payment
         Payment payment = new Payment();
         payment.setParkedCar(car);
-        payment.setPaymentMethod(PaymentMethod.CASH); // or get from req if needed
+        payment.setPaymentMethod(PaymentMethod.CASH); // Or get from req if needed
         payment.setAmount(fee);
         paymentRepo.save(payment);
 
-        // 6) Return DTO
         HistoryDto dto = new HistoryDto();
         dto.setParkedId(car.getId());
         dto.setCarNumber(car.getCarNumber());
@@ -107,7 +114,7 @@ public class ParkingServiceImpl implements ParkingService {
         return dto;
     }
 
-    // GET ACTIVE STATUS
+    // ACTIVE STATUS
     @Override
     public List<ActiveDto> getActiveStatus(Integer userId) {
         return parkedCarRepo.findByUserIdAndExitTimeIsNull(userId)
@@ -119,11 +126,12 @@ public class ParkingServiceImpl implements ParkingService {
                     d.setSlotNumber(c.getSlot().getSlotNumber());
                     d.setEntryTime(c.getEntryTime());
                     d.setBuildingName(c.getSlot().getBuilding().getName());
+                    // d.setKey(null); // Optionally: don't expose key here
                     return d;
                 }).collect(Collectors.toList());
     }
 
-    // GET HISTORY
+    // HISTORY
     @Override
     public List<HistoryDto> getHistory(Integer userId) {
         return parkedCarRepo.findByUserIdAndExitTimeIsNotNull(userId)
@@ -141,7 +149,7 @@ public class ParkingServiceImpl implements ParkingService {
                 }).collect(Collectors.toList());
     }
 
-
+    // BUILDINGS
     @Override
     public List<BuildingDto> getAllBuildings() {
         return buildingRepo.findAll().stream()
@@ -149,9 +157,10 @@ public class ParkingServiceImpl implements ParkingService {
                 .collect(Collectors.toList());
     }
 
+    // SLOTS BY BUILDING
     @Override
     public List<SlotDto> getSlotsByBuilding(Integer buildingId) {
-        return slotRepo.findByBuilding_Id(buildingId)   // <--- UNDERSCORE!
+        return slotRepo.findByBuilding_Id(buildingId)
                 .stream()
                 .map(s -> new SlotDto(
                         s.getId(),
@@ -161,4 +170,20 @@ public class ParkingServiceImpl implements ParkingService {
                 .collect(Collectors.toList());
     }
 
+    // VERIFY SLOT KEY
+    @Override
+    public String verifySlotKey(Integer userId, Integer slotId, String inputKey) {
+        Optional<SlotKey> optional = slotKeyRepo.findTopByUserIdAndSlotIdAndKeyCodeOrderByIdDesc(
+                userId.longValue(), slotId.longValue(), inputKey);
+
+        if (optional.isEmpty()) return "No key found for this slot.";
+
+        SlotKey slotKey = optional.get();
+        if (Boolean.TRUE.equals(slotKey.getUsed())) return "Key already used.";
+        if (LocalDateTime.now().isAfter(slotKey.getExpiresAt())) return "Key expired.";
+
+        slotKey.setUsed(true);
+        slotKeyRepo.save(slotKey);
+        return "success";
+    }
 }
