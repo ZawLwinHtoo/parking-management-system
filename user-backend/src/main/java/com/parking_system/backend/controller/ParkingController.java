@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.parking_system.backend.service.ParkingService;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/parking")
@@ -50,9 +51,10 @@ public class ParkingController {
     public ResponseEntity<?> verifyKey(@RequestBody KeyVerifyRequest req) {
         String result = parkingService.verifySlotKey(req.getUserId(), req.getSlotId(), req.getKey());
         if ("success".equals(result)) {
-            return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Slot unlocked. Welcome!"));
+            return ResponseEntity.ok(Map.of("success", true, "message", "Slot unlocked. Welcome!"));
         } else {
-            return ResponseEntity.ok(java.util.Map.of("success", false, "message", result));
+            return ResponseEntity.ok(Map.of("success", false, "message", result));
         }
     }
+
 }

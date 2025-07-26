@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import PrivateRoute from './components/PrivateRoute'
+import KeyEntry from './pages/KeyEntry'  // <-- Import KeyEntry!
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/key-entry" element={<KeyEntry />} />  {/* <-- Add KeyEntry route! */}
         <Route
           path="/dashboard/*"
           element={

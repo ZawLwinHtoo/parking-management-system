@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { getBuildings, getSlotsByBuilding, parkCar } from "../api/parking";
 import { Button, Form, Modal } from "react-bootstrap";
 import Parking3DSelector from "./Parking3DSelector";
+import { useNavigate } from "react-router-dom";
 
 export default function ParkForm({ userId, onSuccess }) {
   const [buildings, setBuildings] = useState([]);
@@ -16,6 +17,8 @@ export default function ParkForm({ userId, onSuccess }) {
   const [slotKey, setSlotKey] = useState("");
   const [slotNumber, setSlotNumber] = useState("");
   const [buildingName, setBuildingName] = useState("");
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     getBuildings().then((res) => setBuildings(res.data));
@@ -46,11 +49,8 @@ export default function ParkForm({ userId, onSuccess }) {
       setBuildingName(buildingName);
       setShowKeyModal(true);
 
-      // Reset form
-      setCarNumber("");
-      setSelectedSlotId(null);
-      setSelectedBuilding("");
-      onSuccess && onSuccess();
+      // Do NOT reset state here! Wait until after navigation.
+      // (We reset after handling Enter/Close in modal)
     } catch (err) {
       setError(err.response?.data?.message || "Park failed");
     }
@@ -61,6 +61,30 @@ export default function ParkForm({ userId, onSuccess }) {
     ...slot,
     floor: Number(slot.slotNumber.match(/F(\d+)/)?.[1] || 1)
   }));
+
+  // This function snapshots values before resetting
+  function handleEnterKey() {
+    const tempUserId = userId;
+    const tempSlotId = selectedSlotId;
+    const tempKey = slotKey;
+
+    setShowKeyModal(false);
+    setCarNumber("");
+    setSelectedSlotId(null);
+    setSelectedBuilding("");
+    onSuccess && onSuccess();
+
+    setTimeout(() => {
+      console.log('NAVIGATING with', tempUserId, tempSlotId, tempKey);
+      navigate("/key-entry", {
+        state: {
+          userId: tempUserId,
+          slotId: tempSlotId,
+          key: tempKey,
+        },
+      });
+    }, 0);
+  }
 
   return (
     <>
@@ -129,6 +153,9 @@ export default function ParkForm({ userId, onSuccess }) {
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowKeyModal(false)}>
             Close
+          </Button>
+          <Button variant="primary" onClick={handleEnterKey}>
+            Enter
           </Button>
         </Modal.Footer>
       </Modal>

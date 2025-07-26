@@ -186,4 +186,5 @@ public class ParkingServiceImpl implements ParkingService {
         slotKeyRepo.save(slotKey);
         return "success";
     }
+
 }
