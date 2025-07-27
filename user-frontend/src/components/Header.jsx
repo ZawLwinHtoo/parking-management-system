@@ -15,7 +15,7 @@ export default function Header() {
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm px-4">
       <Link className="navbar-brand fw-bold" to="/" style={{ fontSize: 25, letterSpacing: ".02em" }}>
-        🚗 ParkEasy
+        SPARK
       </Link>
       <div className="collapse navbar-collapse">
         <ul className="navbar-nav ms-auto align-items-center">

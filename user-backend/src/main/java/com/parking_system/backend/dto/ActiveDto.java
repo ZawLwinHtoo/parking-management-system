@@ -11,4 +11,6 @@ public class ActiveDto {
     private String buildingName; // <-- Add this!
     private LocalDateTime entryTime;
     private String key;
+
+
 }

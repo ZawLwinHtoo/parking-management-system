@@ -9,11 +9,13 @@ public class SlotDto {
     private String slotNumber;
     private boolean isOccupied;
     private String slotType; // for frontend display, if needed
+    private Integer floor;
 
-    public SlotDto(Integer id, String slotNumber, String slotType, Boolean isOccupied) {
+    public SlotDto(Integer id, String slotNumber, String slotType, Boolean isOccupied, Integer floor) {
         this.id = id;
         this.slotNumber = slotNumber;
         this.slotType = slotType;
         this.isOccupied = isOccupied;
+        this.floor = floor;
     }
 }

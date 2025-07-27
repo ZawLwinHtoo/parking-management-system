@@ -30,6 +30,11 @@ public class ParkingServiceImpl implements ParkingService {
     @Override
     @Transactional
     public ActiveDto park(ParkRequest req) {
+        // Defensive check: Prevent double parking
+        if (parkedCarRepo.findByCarNumberAndExitTimeIsNull(req.getCarNumber()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Car is already parked!");
+        }
+
         // 1) Find slot by ID
         Slot slot = slotRepo.findById(req.getSlotId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Slot not found"));
@@ -86,6 +91,7 @@ public class ParkingServiceImpl implements ParkingService {
         Duration dur = Duration.between(car.getEntryTime(), car.getExitTime());
         long hours = Math.max(1, dur.toHours());
 
+        // Use String slotType for rate lookup
         BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
                 .getRatePerHour();
@@ -117,7 +123,8 @@ public class ParkingServiceImpl implements ParkingService {
     // ACTIVE STATUS
     @Override
     public List<ActiveDto> getActiveStatus(Integer userId) {
-        return parkedCarRepo.findByUserIdAndExitTimeIsNull(userId)
+        return parkedCarRepo.findByUser_IdAndExitTimeIsNull(userId)
+
                 .stream()
                 .map(c -> {
                     ActiveDto d = new ActiveDto();
@@ -134,7 +141,8 @@ public class ParkingServiceImpl implements ParkingService {
     // HISTORY
     @Override
     public List<HistoryDto> getHistory(Integer userId) {
-        return parkedCarRepo.findByUserIdAndExitTimeIsNotNull(userId)
+        return parkedCarRepo.findByUser_IdAndExitTimeIsNotNull(userId)
+
                 .stream()
                 .map(c -> {
                     HistoryDto d = new HistoryDto();
@@ -165,8 +173,10 @@ public class ParkingServiceImpl implements ParkingService {
                 .map(s -> new SlotDto(
                         s.getId(),
                         s.getSlotNumber(),
-                        s.getSlotType().name(),
-                        s.getIsOccupied()))
+                        s.getSlotType(),
+                        s.getIsOccupied(),
+                        s.getFloor()      // <-- Now includes floor!
+                ))
                 .collect(Collectors.toList());
     }
 

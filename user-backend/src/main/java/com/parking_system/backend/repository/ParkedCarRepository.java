@@ -6,10 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ParkedCarRepository extends JpaRepository<ParkedCar, Integer> {
-    // Active (not yet exited) cars for a user
-    List<ParkedCar> findByUserIdAndExitTimeIsNull(Integer userId);
-    // Historical (exited) cars for a user
-    List<ParkedCar> findByUserIdAndExitTimeIsNotNull(Integer userId);
-    // Find by car number (optionally to unpark)
+    List<ParkedCar> findByUser_IdAndExitTimeIsNull(Integer userId);
+    List<ParkedCar> findByUser_IdAndExitTimeIsNotNull(Integer userId);
     Optional<ParkedCar> findByCarNumberAndExitTimeIsNull(String carNumber);
 }

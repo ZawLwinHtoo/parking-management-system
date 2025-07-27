@@ -58,9 +58,10 @@ export default function ParkForm({ userId, onSuccess }) {
 
   // 🔥 Add floor property before passing to 3D
   const slotsWithFloor = slots.map(slot => ({
-    ...slot,
-    floor: Number(slot.slotNumber.match(/F(\d+)/)?.[1] || 1)
-  }));
+  ...slot,
+  floor: slot.floor ?? 1
+}));
+
 
   // This function snapshots values before resetting
   function handleEnterKey() {
