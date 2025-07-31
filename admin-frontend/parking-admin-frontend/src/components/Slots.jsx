@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 import Parking3DView from "./Parking3DView";
+import toast, { Toaster } from "react-hot-toast";
 
 const API_SLOTS = "/api/slots";
 const API_BUILDINGS = "/api/buildings";
@@ -14,74 +16,36 @@ export default function Slots() {
     slotNumber: "",
     slotType: "",
     location: "",
-    isAvailable: true,
     isOccupied: false,
   });
   const [error, setError] = useState("");
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
+  const firstInputRef = useRef(null);
 
-  // Fetch buildings
   useEffect(() => {
     fetch(API_BUILDINGS)
       .then(res => res.json())
       .then(setBuildings)
       .catch(() => setBuildings([]));
   }, []);
-
-  // Fetch slots
-  useEffect(() => {
-    refreshSlots();
-  }, []);
-
+  useEffect(() => { refreshSlots(); }, []);
   const refreshSlots = () => {
     fetch(API_SLOTS)
       .then(res => res.json())
       .then(setSlots)
       .catch(() => setSlots([]));
   };
-
-  // Helper: used slot numbers for selected building
-  const usedSlotNumbers = slots
-    .filter(
-      s =>
-        String(editing?.buildingId || form.buildingId) &&
-        (String(s.buildingId) === String(editing?.buildingId || form.buildingId) ||
-          String(s.building?.id) === String(editing?.buildingId || form.buildingId))
-    )
-    .map(s => s.slotNumber);
-
-  // All slot number options S1-S30
-  const slotNumberOptions = [];
-  for (let i = 1; i <= 30; i++) {
-    const slotNum = "S" + i;
-    // If we're editing, allow the current slot to be selectable
-    const taken =
-      usedSlotNumbers.includes(slotNum) &&
-      (!editing || editing.slotNumber !== slotNum);
-    slotNumberOptions.push(
-      <option key={slotNum} value={slotNum} disabled={taken}>
-        {slotNum} {taken ? " (Taken)" : ""}
-      </option>
-    );
-  }
-
-  // ---- Handlers ----
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm(f => ({
-      ...f,
-      [name]: type === "checkbox" ? checked : value,
-      ...(name === "buildingId" ? { slotNumber: "" } : {}), // reset slot number when building changes
-    }));
-  };
-
-  const handleRadioChange = (status) => {
-    if (status === "available") {
-      setForm(f => ({ ...f, isAvailable: true, isOccupied: false }));
-    } else {
-      setForm(f => ({ ...f, isAvailable: false, isOccupied: true }));
+  useEffect(() => {
+    if (showForm && firstInputRef.current) {
+      firstInputRef.current.focus();
     }
-  };
+  }, [showForm]);
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e) => { if (e.key === "Escape") setShowForm(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showForm]);
 
   const handleAdd = () => {
     setEditing(null);
@@ -90,7 +54,6 @@ export default function Slots() {
       slotNumber: "",
       slotType: "",
       location: "",
-      isAvailable: true,
       isOccupied: false,
     });
     setShowForm(true);
@@ -104,11 +67,17 @@ export default function Slots() {
       slotNumber: slot.slotNumber,
       slotType: slot.slotType,
       location: slot.location || "",
-      isAvailable: slot.isAvailable,
       isOccupied: slot.isOccupied,
     });
     setShowForm(true);
     setError("");
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this slot?")) return;
+    await fetch(`${API_SLOTS}/${id}`, { method: "DELETE" });
+    refreshSlots();
+    toast.success("Slot deleted!");
   };
 
   const handleSubmit = async (e) => {
@@ -126,7 +95,6 @@ export default function Slots() {
         slotNumber: form.slotNumber,
         slotType: form.slotType,
         location: form.location,
-        isAvailable: form.isAvailable,
         isOccupied: form.isOccupied,
       };
       const res = await fetch(url, {
@@ -145,22 +113,62 @@ export default function Slots() {
         slotNumber: "",
         slotType: "",
         location: "",
-        isAvailable: true,
         isOccupied: false,
       });
       refreshSlots();
+      toast.success(editing ? "Slot updated!" : "Slot added!");
     } catch (e) {
       setError("Error: " + e.message);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this slot?")) return;
-    await fetch(`${API_SLOTS}/${id}`, { method: "DELETE" });
-    refreshSlots();
+  const displayedSlots = selectedBuildingId
+    ? slots.filter(slot =>
+        String(slot.buildingId) === String(selectedBuildingId) ||
+        String(slot.building?.id) === String(selectedBuildingId)
+      )
+    : slots;
+
+  const usedSlotNumbers = slots
+    .filter(
+      s =>
+        String(editing?.buildingId || form.buildingId) &&
+        (String(s.buildingId) === String(editing?.buildingId || form.buildingId) ||
+          String(s.building?.id) === String(editing?.buildingId || form.buildingId))
+    )
+    .map(s => s.slotNumber);
+
+  const slotNumberOptions = [];
+  for (let i = 1; i <= 30; i++) {
+    const slotNum = "S" + i;
+    const taken =
+      usedSlotNumbers.includes(slotNum) &&
+      (!editing || editing.slotNumber !== slotNum);
+    slotNumberOptions.push(
+      <option key={slotNum} value={slotNum} disabled={taken}>
+        {slotNum} {taken ? " (Taken)" : ""}
+      </option>
+    );
+  }
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm(f => ({
+      ...f,
+      [name]: type === "checkbox" ? checked : value,
+      ...(name === "buildingId" ? { slotNumber: "" } : {}),
+    }));
   };
 
-  // ---- Styles ----
+  // Only toggle isOccupied, no isAvailable
+  const handleRadioChange = (status) => {
+    setForm(f => ({ ...f, isOccupied: status === "occupied" }));
+  };
+
+  const getFloor = (slot) =>
+    slot.floor ||
+    Math.ceil(parseInt(slot.slotNumber.replace("S", "")) / 10);
+
   const actionBtn = {
     background: "linear-gradient(90deg,#4263eb 60%,#3bc9db 120%)",
     color: "#fff",
@@ -208,19 +216,117 @@ export default function Slots() {
     width: 380,
     boxShadow: "0 4px 44px #232e5040",
     border: "1.5px solid #4263eb30",
-    alignItems: "center"
+    alignItems: "center",
+    position: "relative"
   };
 
-  // -- Filtering slots for table display (by selected building) --
-  const displayedSlots = selectedBuildingId
-    ? slots.filter(slot =>
-        String(slot.buildingId) === String(selectedBuildingId) ||
-        String(slot.building?.id) === String(selectedBuildingId)
-      )
-    : slots;
+  // --- MODAL JSX, PORTALED TO BODY ---
+  const modal = (
+    <div style={{
+      position: "fixed",
+      left: 0, top: 0, width: "100vw", height: "100vh",
+      background: "rgba(34,41,72,0.82)",
+      backdropFilter: "blur(7px)",
+      zIndex: 99999,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }}>
+      <form
+        onSubmit={handleSubmit}
+        style={formStyle}
+        onKeyDown={e => {
+          if (e.key === "Escape") setShowForm(false);
+        }}
+      >
+        <h3 style={{
+          color: editing ? "#61dafb" : "#51cf66",
+          marginBottom: 13,
+          fontWeight: 800,
+          fontSize: 23,
+          letterSpacing: ".03em"
+        }}>
+          {editing ? "Edit Slot" : "Add Slot"}
+        </h3>
+        <select
+          ref={firstInputRef}
+          style={inputStyle}
+          name="buildingId"
+          value={form.buildingId}
+          onChange={handleChange}
+          required
+        >
+          <option value="">Select Building</option>
+          {buildings.map((b) =>
+            <option value={b.id} key={b.id}>{b.name}</option>
+          )}
+        </select>
+        <select
+          style={inputStyle}
+          name="slotNumber"
+          value={form.slotNumber}
+          onChange={handleChange}
+          required
+          disabled={!form.buildingId}
+        >
+          <option value="">Select Slot Number</option>
+          {slotNumberOptions}
+        </select>
+        <select
+          style={inputStyle}
+          name="slotType"
+          value={form.slotType}
+          onChange={handleChange}
+          required
+        >
+          <option value="">Slot Type</option>
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
+        <input
+          style={inputStyle}
+          name="location"
+          placeholder="Location (optional)"
+          value={form.location}
+          onChange={handleChange}
+        />
+        <div style={{ display: "flex", gap: 24, margin: "0 0 12px 0" }}>
+          <label style={{ color: "#eaf0ff", fontWeight: 500 }}>
+            <input
+              type="radio"
+              name="slotStatus"
+              value="available"
+              checked={!form.isOccupied}
+              onChange={() => handleRadioChange("available")}
+              style={{ marginRight: 7 }}
+            />
+            Available
+          </label>
+          <label style={{ color: "#eaf0ff", fontWeight: 500 }}>
+            <input
+              type="radio"
+              name="slotStatus"
+              value="occupied"
+              checked={form.isOccupied}
+              onChange={() => handleRadioChange("occupied")}
+              style={{ marginRight: 7 }}
+            />
+            Occupied
+          </label>
+        </div>
+        {error && <div style={{ color: "#fa5252", marginBottom: 8, maxWidth: 300 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 13, marginTop: 8 }}>
+          <button style={actionBtn} type="submit">{editing ? "Update" : "Add"}</button>
+          <button style={deleteBtn} type="button" onClick={() => setShowForm(false)}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  );
 
   return (
     <div style={{ width: "100%", padding: "0 36px", boxSizing: "border-box" }}>
+      <Toaster position="top-center" />
       <h2 style={{
         color: "#fff",
         marginTop: 0,
@@ -229,7 +335,6 @@ export default function Slots() {
         marginBottom: 18
       }}>Slots</h2>
 
-      {/* Building selector for 3D view */}
       <div style={{ display: "flex", gap: 18, alignItems: "center", marginBottom: 16 }}>
         <select
           style={{
@@ -254,18 +359,18 @@ export default function Slots() {
         }} onClick={handleAdd}>Add Slot</button>
       </div>
 
-      {/* 3D Parking View */}
       {selectedBuildingId && (
         <Parking3DView
-          slots={slots.filter(slot =>
-            String(slot.buildingId) === String(selectedBuildingId) ||
-            String(slot.building?.id) === String(selectedBuildingId)
-          )}
-          building={buildings.find(b => String(b.id) === String(selectedBuildingId))}
+          slots={displayedSlots}
+          buildingName={
+            buildings.find(b => String(b.id) === String(selectedBuildingId))?.name || ""
+          }
+          onEditSlot={handleEdit}
+          onDeleteSlot={handleDelete}
+          hideHtml={showForm}
         />
       )}
 
-      {/* Table view (filtered if building is selected, or all) */}
       <div style={{
         width: "92%",
         minWidth: 650,
@@ -293,7 +398,6 @@ export default function Slots() {
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Type</th>
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Floor</th>
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Location</th>
-              <th style={{ padding: "13px 20px", fontWeight: 800 }}>Available</th>
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Occupied</th>
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Actions</th>
             </tr>
@@ -309,11 +413,8 @@ export default function Slots() {
                 </td>
                 <td style={{ padding: "11px 20px" }}>{slot.slotNumber}</td>
                 <td style={{ padding: "11px 20px" }}>{slot.slotType}</td>
-                <td style={{ padding: "11px 20px" }}>{slot.floor}</td>
+                <td style={{ padding: "11px 20px" }}>{getFloor(slot)}</td>
                 <td style={{ padding: "11px 20px" }}>{slot.location}</td>
-                <td style={{ padding: "11px 20px" }}>
-                  {slot.isAvailable ? <span style={{ color: "limegreen" }}>✔️</span> : <span style={{ color: "#fa5252" }}>❌</span>}
-                </td>
                 <td style={{ padding: "11px 20px" }}>
                   {slot.isOccupied ? <span style={{ color: "limegreen" }}>✔️</span> : <span style={{ color: "#fa5252" }}>❌</span>}
                 </td>
@@ -330,96 +431,9 @@ export default function Slots() {
         </table>
       </div>
 
-      {/* FORM MODAL */}
-      {showForm && (
-        <div style={{
-          position: "fixed",
-          left: 0, top: 0, width: "100vw", height: "100vh",
-          background: "rgba(34,41,72,0.40)",
-          zIndex: 199,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backdropFilter: "blur(2px)",
-        }}>
-          <form onSubmit={handleSubmit} style={formStyle}>
-            <h3 style={{ color: "#fff", marginBottom: 13, fontWeight: 800 }}>
-              {editing ? "Edit Slot" : "Add Slot"}
-            </h3>
-            <select
-              style={inputStyle}
-              name="buildingId"
-              value={form.buildingId}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Building</option>
-              {buildings.map((b) =>
-                <option value={b.id} key={b.id}>{b.name}</option>
-              )}
-            </select>
-            <select
-              style={inputStyle}
-              name="slotNumber"
-              value={form.slotNumber}
-              onChange={handleChange}
-              required
-              disabled={!form.buildingId}
-            >
-              <option value="">Select Slot Number</option>
-              {slotNumberOptions}
-            </select>
-            <select
-              style={inputStyle}
-              name="slotType"
-              value={form.slotType}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Slot Type</option>
-              <option value="small">Small</option>
-              <option value="medium">Medium</option>
-              <option value="large">Large</option>
-            </select>
-            <input
-              style={inputStyle}
-              name="location"
-              placeholder="Location (optional)"
-              value={form.location}
-              onChange={handleChange}
-            />
-            <div style={{ display: "flex", gap: 24, margin: "0 0 12px 0" }}>
-              <label style={{ color: "#eaf0ff", fontWeight: 500 }}>
-                <input
-                  type="radio"
-                  name="slotStatus"
-                  value="available"
-                  checked={form.isAvailable && !form.isOccupied}
-                  onChange={() => handleRadioChange("available")}
-                  style={{ marginRight: 7 }}
-                />
-                Available
-              </label>
-              <label style={{ color: "#eaf0ff", fontWeight: 500 }}>
-                <input
-                  type="radio"
-                  name="slotStatus"
-                  value="occupied"
-                  checked={form.isOccupied && !form.isAvailable}
-                  onChange={() => handleRadioChange("occupied")}
-                  style={{ marginRight: 7 }}
-                />
-                Occupied
-              </label>
-            </div>
-            {error && <div style={{ color: "#fa5252", marginBottom: 8, maxWidth: 300 }}>{error}</div>}
-            <div style={{ display: "flex", gap: 13, marginTop: 8 }}>
-              <button style={actionBtn} type="submit">{editing ? "Update" : "Add"}</button>
-              <button style={deleteBtn} type="button" onClick={() => setShowForm(false)}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
+      {showForm &&
+        ReactDOM.createPortal(modal, document.body)
+      }
     </div>
   );
 }

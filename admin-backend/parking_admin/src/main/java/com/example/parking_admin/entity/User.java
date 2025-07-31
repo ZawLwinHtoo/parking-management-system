@@ -1,9 +1,15 @@
 package com.example.parking_admin.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "users")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,6 +22,9 @@ public class User {
     private String phone; // <-- Add this field
     @Column(name = "full_name")
     private String fullName;
+
+    @Column(name = "profile_image")
+    private String profileImage;
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -38,5 +47,14 @@ public class User {
     
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
 }
     

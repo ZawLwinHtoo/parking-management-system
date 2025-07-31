@@ -11,7 +11,7 @@ public class SlotMapper {
         dto.setIsOccupied(slot.getIsOccupied());
         dto.setSlotType(slot.getSlotType());
         dto.setLocation(slot.getLocation());
-        dto.setIsAvailable(slot.getIsAvailable());
+        //dto.setIsAvailable(slot.getIsAvailable());
         dto.setBuildingId(slot.getBuilding() != null ? slot.getBuilding().getId() : null);
         dto.setBuildingName(slot.getBuilding() != null ? slot.getBuilding().getName() : null);
         dto.setFloor(slot.getFloor());
@@ -25,7 +25,7 @@ public class SlotMapper {
         slot.setIsOccupied(dto.getIsOccupied());
         slot.setSlotType(dto.getSlotType());
         slot.setLocation(dto.getLocation());
-        slot.setIsAvailable(dto.getIsAvailable());
+        //slot.setIsAvailable(dto.getIsAvailable());
         slot.setFloor(dto.getFloor());
         slot.setBuilding(building);
         return slot;

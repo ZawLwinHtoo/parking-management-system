@@ -6,7 +6,7 @@ public class SlotDto {
     private Boolean isOccupied;
     private String slotType;
     private String location;
-    private Boolean isAvailable;
+    //private Boolean isAvailable;
     private Long buildingId;    // Only ID for reference
     private String buildingName;
     private Integer floor;
@@ -27,8 +27,8 @@ public class SlotDto {
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
 
-    public Boolean getIsAvailable() { return isAvailable; }
-    public void setIsAvailable(Boolean isAvailable) { this.isAvailable = isAvailable; }
+    //public Boolean getIsAvailable() { return isAvailable; }
+    //public void setIsAvailable(Boolean isAvailable) { this.isAvailable = isAvailable; }
 
     public Long getBuildingId() { return buildingId; }
     public void setBuildingId(Long buildingId) { this.buildingId = buildingId; }

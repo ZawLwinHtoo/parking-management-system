@@ -15,6 +15,14 @@ const Sidebar = ({ onLogout }) => ( // Make sure to accept onLogout!
     <NavLink to="/slots" style={navStyle}>Slots</NavLink>
     <NavLink to="/sessions" style={navStyle}>Sessions</NavLink>
     <NavLink to="/feedback" style={navStyle}>Feedback</NavLink>
+    <NavLink
+      to="/profile"  style={{ color: "#61dafb", fontWeight: 600 }}
+      className={({ isActive }) => (isActive ? "active" : "")}
+    >
+      <span role="img" aria-label="profile">👤</span> Profile
+    </NavLink>
+
+
     <button onClick={onLogout} style={{
       marginTop: "auto",
       background: "#e74c3c",

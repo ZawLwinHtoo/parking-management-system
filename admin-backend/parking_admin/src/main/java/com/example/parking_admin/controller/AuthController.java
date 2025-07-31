@@ -34,11 +34,13 @@ public class AuthController {
                     .body(Map.of("error", "Access denied: Not an admin user"));
         }
 
+        // Add profileImage to response!
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
                 "username", user.getUsername(),
                 "role", user.getRole(),
-                "fullName", user.getFullName()
+                "fullName", user.getFullName(),
+                "profileImage", user.getProfileImage()   // <-- add this line!
         ));
     }
 }

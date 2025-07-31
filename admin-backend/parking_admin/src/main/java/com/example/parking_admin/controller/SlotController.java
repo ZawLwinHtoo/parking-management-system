@@ -5,16 +5,17 @@ import com.example.parking_admin.dto.SlotMapper;
 import com.example.parking_admin.entity.Building;
 import com.example.parking_admin.entity.Slot;
 import com.example.parking_admin.repository.BuildingRepository;
+import com.example.parking_admin.repository.ParkedCarRepository;
 import com.example.parking_admin.repository.SlotRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/slots")
-@CrossOrigin(origins = "*")
 public class SlotController {
 
     @Autowired
@@ -22,6 +23,9 @@ public class SlotController {
 
     @Autowired
     private BuildingRepository buildingRepository;
+
+    @Autowired
+    private ParkedCarRepository parkedCarRepository;
 
     @GetMapping
     public List<SlotDto> getAllSlots() {
@@ -59,6 +63,7 @@ public class SlotController {
     }
 
     @PutMapping("/{id}")
+    @Transactional // Make sure this is transactional!
     public SlotDto updateSlot(@PathVariable Long id, @RequestBody SlotDto slotDto) {
         Slot slot = slotRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Slot not found"));
@@ -68,9 +73,14 @@ public class SlotController {
         slot.setIsOccupied(slotDto.getIsOccupied());
         slot.setSlotType(slotDto.getSlotType());
         slot.setLocation(slotDto.getLocation());
-        slot.setIsAvailable(slotDto.getIsAvailable());
         slot.setBuilding(building);
         slot.setFloor(SlotMapper.calculateFloorFromSlotNumber(slot.getSlotNumber()));
+
+        // 💡 Check if being set to available/unoccupied:
+        if (Boolean.FALSE.equals(slotDto.getIsOccupied())) {
+            parkedCarRepository.deleteBySlot(slot);
+        }
+
         Slot updated = slotRepository.save(slot);
         return SlotMapper.toDto(updated);
     }

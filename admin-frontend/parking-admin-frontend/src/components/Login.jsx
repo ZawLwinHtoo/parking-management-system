@@ -16,14 +16,21 @@ export default function Login({ onLogin }) {
       });
       if (response.ok) {  
         const data = await response.json();
+        // Save to localStorage
+        localStorage.setItem("user", JSON.stringify(data.user || data)); // adapt if your API returns { user, token }
+        if (data.token) {
+          localStorage.setItem("token", data.token);
+        }
         onLogin(data); // Pass user info to parent  
       } else {
         const err = await response.json();
         setError(err.error || "Login failed");
       }
+
     } catch {
       setError("Server error");
     }
+    
   };
 
   return (

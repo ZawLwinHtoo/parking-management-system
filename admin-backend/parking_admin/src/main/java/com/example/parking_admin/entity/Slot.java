@@ -1,6 +1,9 @@
 package com.example.parking_admin.entity;
 
 import jakarta.persistence.*;
+//import com.example.parking_admin.entity.ParkedCar;
+import java.util.List;
+
 
 @Entity
 @Table(name = "slots", uniqueConstraints = @UniqueConstraint(columnNames = {"building_id", "slot_number"}))
@@ -30,6 +33,9 @@ public class Slot {
     @Column(name = "floor")
     private Integer floor;
 
+    @OneToMany(mappedBy = "slot", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ParkedCar> parkedCars;
+
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -55,4 +61,12 @@ public class Slot {
 
     public Integer getFloor() { return floor; }
     public void setFloor(Integer floor) { this.floor = floor; }
+
+    public List<ParkedCar> getParkedCars() {
+    return parkedCars;
+    }
+
+    public void setParkedCars(List<ParkedCar> parkedCars) {
+        this.parkedCars = parkedCars;
+    }
 }
