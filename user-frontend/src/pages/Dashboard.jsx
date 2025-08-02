@@ -41,7 +41,9 @@ export default function Dashboard() {
       <Header />
       <div className="container py-5">
         <div className="text-center mb-4">
-          <h1 className="fw-bold text-light" style={{ textShadow: "0 2px 10px #0005" }}>Parking Dashboard</h1>
+          <h1 className="fw-bold text-light" style={{ textShadow: "0 2px 10px #0005" }}>
+            Parking Dashboard
+          </h1>
           <p className="lead mb-3 text-info">
             Welcome, <b>{user.fullName || user.username}</b>
           </p>
@@ -63,6 +65,7 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Unpark Section with Table UI ONLY */}
           <div className="col-12 col-md-6">
             <div className="card shadow-lg border-0 rounded-4 mb-4" style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)" }}>
               <div className="card-body">

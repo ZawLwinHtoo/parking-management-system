@@ -57,4 +57,16 @@ public class ParkingController {
         }
     }
 
+    @PostMapping("/payment/checkout")
+    public ResponseEntity<PaymentKeyResponse> checkoutAndGenerateKey(@RequestBody PaymentRequest req) {
+        PaymentKeyResponse resp = parkingService.checkoutAndGenerateKey(req.getParkedId());
+        return ResponseEntity.ok(resp);
+    }
+    @GetMapping("/active/{parkedId}")
+    public ResponseEntity<ActiveDto> getActiveById(@PathVariable Integer parkedId) {
+        return ResponseEntity.ok(parkingService.getActiveById(parkedId));
+    }
+
+
+
 }

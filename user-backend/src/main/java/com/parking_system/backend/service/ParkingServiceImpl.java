@@ -105,7 +105,7 @@ public class ParkingServiceImpl implements ParkingService {
 
         Payment payment = new Payment();
         payment.setParkedCar(car);
-        payment.setPaymentMethod(PaymentMethod.CASH); // Or get from req if needed
+        // Or get from req if needed
         payment.setAmount(fee);
         paymentRepo.save(payment);
 
@@ -196,5 +196,85 @@ public class ParkingServiceImpl implements ParkingService {
         slotKeyRepo.save(slotKey);
         return "success";
     }
+
+    @Override
+    @Transactional
+    public PaymentKeyResponse checkoutAndGenerateKey(Integer parkedId) {
+        ParkedCar car = parkedCarRepo.findById(parkedId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found"));
+
+        // Set exitTime (if not set)
+        if (car.getExitTime() == null) {
+            car.setExitTime(LocalDateTime.now());
+        }
+
+        // Always calculate fee
+        LocalDateTime entry = car.getEntryTime();
+        LocalDateTime exit = car.getExitTime();
+        long hours = Math.max(1, Duration.between(entry, exit).toHours());
+
+        // Get fixed rate from DB
+        BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
+                .getRatePerHour();
+        BigDecimal fee = rate.multiply(BigDecimal.valueOf(hours));
+        car.setFee(fee);
+        parkedCarRepo.save(car);
+
+        // Save payment (simulate "paid")
+        Payment payment = paymentRepo.findByParkedCar(car).orElse(new Payment());
+        payment.setParkedCar(car);
+        payment.setAmount(fee);
+        payment.setPaymentTime(LocalDateTime.now());
+        paymentRepo.save(payment);
+
+        // **FREE THE SLOT**
+        Slot slot = car.getSlot();
+        slot.setIsOccupied(false);
+        slotRepo.save(slot);
+
+        // Generate one-time unlock key
+        String code = String.valueOf((int)(Math.random() * 9000) + 1000);
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
+        SlotKey slotKey = new SlotKey();
+        slotKey.setUserId(car.getUser().getId().longValue());
+        slotKey.setSlotId(car.getSlot().getId().longValue());
+        slotKey.setKeyCode(code);
+        slotKey.setExpiresAt(expiresAt);
+        slotKey.setUsed(false);
+        slotKeyRepo.save(slotKey);
+
+        return new PaymentKeyResponse(code, expiresAt, fee);
+    }
+
+    @Override
+    public ActiveDto getActiveById(Integer parkedId) {
+        ParkedCar car = parkedCarRepo.findById(parkedId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found"));
+        ActiveDto dto = new ActiveDto();
+        dto.setParkedId(car.getId());
+        dto.setCarNumber(car.getCarNumber());
+        dto.setSlotNumber(car.getSlot().getSlotNumber());
+        dto.setSlotId(car.getSlot().getId());
+        dto.setUserId(car.getUser().getId());
+        dto.setEntryTime(car.getEntryTime());
+        dto.setBuildingName(car.getSlot().getBuilding().getName());
+        // Calculate a "preview" fee even if not unparked yet!
+        BigDecimal fee = car.getFee();
+        if (fee == null) {
+            LocalDateTime entry = car.getEntryTime();
+            LocalDateTime exit = LocalDateTime.now(); // Use NOW as pretend-exit time
+            long hours = Math.max(1, Duration.between(entry, exit).toHours());
+            // Lookup rate
+            BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
+                    .getRatePerHour();
+            fee = rate.multiply(BigDecimal.valueOf(hours));
+        }
+        dto.setFee(fee);
+        // <------ THIS!
+        return dto;
+    }
+
 
 }

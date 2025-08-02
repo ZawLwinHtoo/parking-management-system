@@ -14,10 +14,6 @@ public class Payment {
     @JoinColumn(name = "parked_car_id", nullable = false)
     private ParkedCar parkedCar;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method", nullable = false)
-    private PaymentMethod paymentMethod;
-
     @Column(name = "payment_time", nullable = false)
     private LocalDateTime paymentTime = LocalDateTime.now();
 
@@ -32,10 +28,6 @@ public class Payment {
 
     public void setParkedCar(ParkedCar parkedCar) {
         this.parkedCar = parkedCar;
-    }
-
-    public void setPaymentMethod(PaymentMethod paymentMethod) {
-        this.paymentMethod = paymentMethod;
     }
 
     public void setPaymentTime(LocalDateTime paymentTime) {

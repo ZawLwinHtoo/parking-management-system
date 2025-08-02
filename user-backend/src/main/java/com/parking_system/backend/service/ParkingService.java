@@ -1,22 +1,16 @@
 package com.parking_system.backend.service;
 
 import com.parking_system.backend.dto.*;
-
 import java.util.List;
 
 public interface ParkingService {
-    ActiveDto park(ParkRequest request);
-
-    HistoryDto unpark(UnparkRequest request);
-
+    ActiveDto park(ParkRequest req);
+    HistoryDto unpark(UnparkRequest req);
     List<ActiveDto> getActiveStatus(Integer userId);
-
     List<HistoryDto> getHistory(Integer userId);
-
-    List<SlotDto> getSlotsByBuilding(Integer buildingId);
-
     List<BuildingDto> getAllBuildings();
-
-    String verifySlotKey(Integer userId, Integer slotId, String key);
+    List<SlotDto> getSlotsByBuilding(Integer buildingId);
+    String verifySlotKey(Integer userId, Integer slotId, String inputKey);
+    PaymentKeyResponse checkoutAndGenerateKey(Integer parkedId);
+    ActiveDto getActiveById(Integer parkedId); // << Add this!
 }
-
