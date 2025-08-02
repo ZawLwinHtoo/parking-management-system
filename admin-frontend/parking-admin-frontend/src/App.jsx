@@ -72,6 +72,7 @@ function App() {
           background: "#191a1c",
           display: "flex",
           flexDirection: "column",
+          marginLeft: 220, // <-- ADD THIS LINE (must match Sidebar width)
         }}>
           <Routes>
             <Route path="/" element={<Dashboard user={user} />} />

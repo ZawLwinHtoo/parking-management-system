@@ -77,9 +77,9 @@ public class SlotController {
         slot.setFloor(SlotMapper.calculateFloorFromSlotNumber(slot.getSlotNumber()));
 
         // 💡 Check if being set to available/unoccupied:
-        if (Boolean.FALSE.equals(slotDto.getIsOccupied())) {
-            parkedCarRepository.deleteBySlot(slot);
-        }
+        // if (Boolean.FALSE.equals(slotDto.getIsOccupied())) {
+        //     parkedCarRepository.deleteBySlot(slot);
+        // }
 
         Slot updated = slotRepository.save(slot);
         return SlotMapper.toDto(updated);

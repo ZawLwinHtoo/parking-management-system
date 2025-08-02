@@ -11,6 +11,38 @@ const modalStyle = {
   boxShadow: "0 4px 40px #000a", color: "#fff"
 };
 
+// Spinner for delete
+function Spinner() {
+  return (
+    <span style={{
+      display: "inline-block",
+      width: 17, height: 17,
+      border: "2.2px solid #fff6",
+      borderTop: "2.2px solid #fff",
+      borderRadius: "50%",
+      animation: "spin 0.85s linear infinite",
+      verticalAlign: "middle",
+      marginRight: 4
+    }} />
+  );
+}
+
+// Snackbar/Toast
+function Toast({ message, onClose }) {
+  return (
+    <div style={{
+      position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
+      background: "#272e3d", color: "#fff", padding: "14px 28px", borderRadius: 13,
+      boxShadow: "0 6px 24px #0005", fontSize: 17, zIndex: 9999, minWidth: 140, textAlign: "center"
+    }}>
+      {message}
+      <button onClick={onClose} style={{
+        background: "none", border: "none", color: "#fff", marginLeft: 15, fontWeight: 700, cursor: "pointer"
+      }}>✖</button>
+    </div>
+  );
+}
+
 function groupSlotsByBuilding(slots) {
   // 1. Group slots by buildingName
   const grouped = slots.reduce((acc, slot) => {
@@ -22,7 +54,6 @@ function groupSlotsByBuilding(slots) {
   // 2. Sort slots by slotNumber within each building
   Object.values(grouped).forEach(slotsArr =>
     slotsArr.sort((a, b) => {
-      // Extract the numeric part for correct sorting (e.g. S2 < S10)
       const aNum = parseInt(a.slotNumber.replace(/\D/g, "")) || 0;
       const bNum = parseInt(b.slotNumber.replace(/\D/g, "")) || 0;
       return aNum - bNum;
@@ -34,15 +65,45 @@ function groupSlotsByBuilding(slots) {
   );
 }
 
+// Helper: format date for datetime-local input
+function toLocalInput(dt) {
+  if (!dt) return "";
+  const d = new Date(dt);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
 
+// Export single session to CSV
+function exportSessionCSV(session) {
+  const headers = ["ID", "User", "Slot", "Building", "Car", "Entry", "Exit", "Fee"];
+  const row = [
+    session.id, session.userName, session.slotNumber, session.building,
+    session.carNumber, session.entryTime, session.exitTime, session.fee
+  ];
+  const csv =
+    headers.join(",") + "\n" +
+    row.map(x => `"${String(x ?? "")}"`).join(",");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `session-${session.id}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export default function AdminSessions() {
   const [sessions, setSessions] = useState([]);
   const [users, setUsers] = useState([]);
   const [slots, setSlots] = useState([]);
-  const [editing, setEditing] = useState(null); // session being edited
+  const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null); // for loader
+  const [toast, setToast] = useState({ show: false, msg: "" });
+  const [details, setDetails] = useState(null); // For session details modal
 
   // Fetch data
   useEffect(() => { fetchSessions(); fetchUsers(); fetchSlots(); }, []);
@@ -53,7 +114,6 @@ export default function AdminSessions() {
   const fetchSlots = () =>
     fetch("/api/slots").then(res => res.json()).then(setSlots);
 
-  // Open edit modal
   const openEdit = (s) => {
     setEditForm({
       carNumber: s.carNumber, fee: s.fee, entryTime: s.entryTime, exitTime: s.exitTime,
@@ -61,19 +121,36 @@ export default function AdminSessions() {
     });
     setEditing(s);
   };
-  // Handle form changes
+
   const handleChange = e => {
     let { name, value } = e.target;
     if (name === "fee") value = parseFloat(value) || 0;
     setEditForm(f => ({ ...f, [name]: value }));
   };
 
+  // Delete session with loader/toast
   const handleDelete = async (id) => {
-  if (!window.confirm("Are you sure you want to delete this session?")) return;
-  await fetch(`/api/sessions/${id}`, { method: "DELETE" });
-  fetchSessions();
+    if (!window.confirm("Are you sure you want to delete this session?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      setToast({ show: true, msg: "Session deleted!" });
+      fetchSessions();
+    } catch (e) {
+      setToast({ show: true, msg: "Delete failed!" });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
+  // Hide toast after 2.2s
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => setToast({ show: false, msg: "" }), 2200);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
 
   // Save changes
   const saveEdit = async () => {
@@ -87,6 +164,12 @@ export default function AdminSessions() {
     setEditing(null);
     fetchSessions();
   };
+
+  // Handle click for details modal (ignore clicks on Edit/Delete)
+  function handleRowClick(s, e) {
+    if (e.target.tagName === "BUTTON") return;
+    setDetails(s);
+  }
 
   return (
     <div style={{
@@ -138,6 +221,7 @@ export default function AdminSessions() {
                     background: idx % 2 ? "#20253c" : "#262d47",
                     transition: "background 0.15s", cursor: "pointer"
                   }}
+                  onClick={e => handleRowClick(s, e)}
                   onMouseEnter={e => e.currentTarget.style.background = "#344170"}
                   onMouseLeave={e => e.currentTarget.style.background = idx % 2 ? "#20253c" : "#262d47"}
                 >
@@ -155,20 +239,25 @@ export default function AdminSessions() {
                         background: "#4b8bfd", color: "#fff", border: "none", borderRadius: 7,
                         padding: "6px 18px", fontWeight: 800, cursor: "pointer", marginRight: 8
                       }}
-                      onClick={() => openEdit(s)}
+                      onClick={e => { e.stopPropagation(); openEdit(s); }}
                     >Edit</button>
                     <button
                       style={{
                         background: "#eb4c4c", color: "#fff", border: "none", borderRadius: 7,
-                        padding: "6px 16px", fontWeight: 800, cursor: "pointer"
+                        padding: "6px 16px", fontWeight: 800,
+                        cursor: deletingId === s.id ? "not-allowed" : "pointer",
+                        opacity: deletingId === s.id ? 0.56 : 1
                       }}
-                      onClick={() => handleDelete(s.id)}
-                    >Delete</button>
+                      disabled={deletingId === s.id}
+                      onClick={e => { e.stopPropagation(); handleDelete(s.id); }}
+                    >
+                      {deletingId === s.id && <Spinner />}
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
-
           </table>
         </div>
         {/* --- Edit Modal --- */}
@@ -227,8 +316,6 @@ export default function AdminSessions() {
                       </optgroup>
                     ))}
                   </select>
-
-
                 </label>
               </div>
               <div style={{ display: "flex", gap: 14, marginTop: 8, justifyContent: "flex-end" }}>
@@ -243,17 +330,47 @@ export default function AdminSessions() {
             </div>
           </div>
         }
+        {/* --- Details Modal --- */}
+        {details &&
+          <div style={modalBgStyle}>
+            <div style={modalStyle}>
+              <h3 style={{ fontWeight: 700, fontSize: 22, marginBottom: 10 }}>Session Details</h3>
+              <div style={{ marginBottom: 18 }}>
+                <div><b>ID:</b> {details.id}</div>
+                <div><b>User:</b> {details.userName}</div>
+                <div><b>Slot:</b> {details.slotNumber} ({details.building})</div>
+                <div><b>Car:</b> {details.carNumber}</div>
+                <div><b>Entry:</b> {details.entryTime ? new Date(details.entryTime).toLocaleString() : "-"}</div>
+                <div><b>Exit:</b> {details.exitTime ? new Date(details.exitTime).toLocaleString() : "-"}</div>
+                <div><b>Fee:</b> {details.fee}</div>
+              </div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => exportSessionCSV(details)}
+                  style={{
+                    background: "#4b8bfd", color: "#fff", border: "none", borderRadius: 7,
+                    padding: "7px 18px", fontWeight: 700, cursor: "pointer"
+                  }}
+                >Export CSV</button>
+                <button
+                  onClick={() => setDetails(null)}
+                  style={{
+                    background: "#333", color: "#fff", border: "none", borderRadius: 7, padding: "7px 18px"
+                  }}
+                >Close</button>
+              </div>
+            </div>
+          </div>
+        }
       </div>
+      {/* Toast/Snackbar */}
+      {toast.show && <Toast message={toast.msg} onClose={() => setToast({ show: false, msg: "" })} />}
+      {/* Spinner animation keyframes */}
+      <style>
+        {`@keyframes spin { 100% { transform: rotate(360deg); } }`}
+      </style>
     </div>
   );
-}
-
-// Helper: format date for datetime-local input
-function toLocalInput(dt) {
-  if (!dt) return "";
-  const d = new Date(dt);
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); // for local input
-  return d.toISOString().slice(0, 16);
 }
 
 const thStyle = {
