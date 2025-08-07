@@ -14,6 +14,7 @@ export default function KeyEntry() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Redirect if user or slot is missing
   if (!userId || !slotId) {
     setTimeout(() => navigate("/dashboard"), 2000);
     return (
@@ -29,6 +30,17 @@ export default function KeyEntry() {
     e.preventDefault();
     setResult(null);
     setLoading(true);
+
+    const token = localStorage.getItem("token");  // Check for the token
+
+    if (!token) {
+      setResult({
+        success: false,
+        message: "Session expired. Please log in again.",
+      });
+      return;
+    }
+
     try {
       const res = await axios.post("/api/parking/verify-key", {
         userId,
@@ -50,7 +62,7 @@ export default function KeyEntry() {
   React.useEffect(() => {
     if (result && result.success) {
       const timeout = setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/dashboard"); // Navigate to dashboard after successful key validation
       }, 1200);
       return () => clearTimeout(timeout);
     }
@@ -58,10 +70,10 @@ export default function KeyEntry() {
 
   return (
     <Container style={{ maxWidth: 450 }}>
-      <h2 className="my-4 text-center">Slot Key Validation</h2>
+      <h2 className="my-4 text-center text-light">Slot Key Validation</h2>
       <Form onSubmit={handleVerify}>
         <Form.Group className="mb-3">
-          <Form.Label>One-Time Key</Form.Label>
+          <Form.Label className="text-light">One-Time Key</Form.Label>
           <Form.Control
             value={key}
             onChange={(e) => setKey(e.target.value)}
@@ -70,12 +82,18 @@ export default function KeyEntry() {
             pattern="\d{4}"
             placeholder="Enter 4-digit key"
             autoFocus
+            className="bg-dark text-light"  // Dark background with light text
           />
         </Form.Group>
-        <Button type="submit" disabled={loading || !key}>
+        <Button
+          type="submit"
+          disabled={loading || !key}
+          className="w-100 mt-3 btn-primary"  // Use primary color for the button
+        >
           {loading ? "Validating..." : "Unlock"}
         </Button>
       </Form>
+
       {result && (
         <Alert
           variant={result.success ? "success" : "danger"}

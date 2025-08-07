@@ -12,19 +12,20 @@ export default function UnparkTable({ activeList, onUnpark }) {
 
   // Click "Unpark" -> open Payment modal with FRESH data (with fee)
   const handleUnparkClick = async (car) => {
-    setPayError("");
-    setFeeLoading(true);
-    try {
-      const res = await getActiveById(car.parkedId); // this includes 'fee'
-      setSelected(res.data);
-      setShowPayModal(true);
-    } catch (err) {
-      setSelected({ ...car, fee: null });
-      setPayError("Could not load latest info");
-      setShowPayModal(true);
-    }
-    setFeeLoading(false);
-  };
+  setPayError("");
+  setFeeLoading(true);
+  try {
+    const res = await getActiveById(car.parkedId); // Fetch active data
+    setSelected(res.data);
+    setShowPayModal(true);
+  } catch (err) {
+    setSelected({ ...car, fee: null });
+    setPayError("Could not load latest info");
+    setShowPayModal(true);
+  }
+  setFeeLoading(false);
+};
+
 
   // Pay Now handler (simulate)
   const handlePayNow = async () => {
@@ -52,12 +53,10 @@ export default function UnparkTable({ activeList, onUnpark }) {
     onUnpark();
   };
 
-  if (!activeList.length) {
+  // Safe check for activeList to prevent errors if undefined or empty
+  if (!activeList || activeList.length === 0) {
     return <div className="alert alert-info text-center mb-0">No cars currently parked.</div>;
   }
-  if (selected) {
-  console.log("Selected for modal:", selected);
-}
 
   return (
     <>
