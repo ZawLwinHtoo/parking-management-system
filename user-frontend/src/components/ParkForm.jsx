@@ -138,30 +138,38 @@
         </Form>
 
         {/* Modal for Slot Key */}
-        <Modal show={showKeyModal} onHide={() => setShowKeyModal(false)} centered>
-          <Modal.Header closeButton>
-            <Modal.Title className="text-light">Slot Entry Key</Modal.Title>
-          </Modal.Header>
-          <Modal.Body className="text-center text-light">
-            <h1 style={{ letterSpacing: "8px" }}>{slotKey}</h1>
-            <div className="my-2">
-              <b>Slot:</b> {slotNumber} <br />
-              <b>Building:</b> {buildingName}
-            </div>
-            <div className="my-2 text-warning">
-              <b>This key is valid for 5 minutes only!</b>
-            </div>
-            <div>Enter this code at the barrier to confirm your parking spot.</div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowKeyModal(false)}>
-              Close
-            </Button>
-            <Button variant="primary" onClick={handleEnterKey}>
-              Enter
-            </Button>
-          </Modal.Footer>
-        </Modal>
+        {/* Modal for Slot Key */}
+<Modal
+  show={showKeyModal}
+  onHide={() => setShowKeyModal(false)}
+  centered
+  data-bs-theme="dark"
+  contentClassName="bg-dark text-light border-0 rounded-4"
+>
+  <Modal.Header closeButton className="border-0">
+    <Modal.Title>Slot Entry Key</Modal.Title>
+  </Modal.Header>
+  <Modal.Body className="text-center">
+    <h1 className="mb-2" style={{ letterSpacing: "8px" }}>{slotKey}</h1>
+    <div className="my-2">
+      <b>Slot:</b> {slotNumber} <br />
+      <b>Building:</b> {buildingName}
+    </div>
+    <div className="my-2 text-warning">
+      <b>This key is valid for 5 minutes only!</b>
+    </div>
+    <div>Enter this code at the barrier to confirm your parking spot.</div>
+  </Modal.Body>
+  <Modal.Footer className="border-0">
+    <Button variant="secondary" onClick={() => setShowKeyModal(false)}>
+      Close
+    </Button>
+    <Button variant="primary" onClick={handleEnterKey}>
+      Enter
+    </Button>
+  </Modal.Footer>
+</Modal>
+
       </>
     );
   }

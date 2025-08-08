@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar"; // Import Sidebar component
 import { getHistory } from "../api/parking"; // Import API call for parking history
 import HistoryTable from "../components/HistoryTable"; // Import HistoryTable component
-
+import { SIDEBAR_WIDTH } from '../constants/layout';
 export default function HistoryPage() {
   const [historyList, setHistoryList] = useState([]);
 
@@ -34,12 +34,12 @@ export default function HistoryPage() {
       {/* Main Content */}
       <div
         style={{
-          marginLeft: '250px', // Make room for the sidebar
-          width: '100%',
-          minHeight: '100vh',
-          background: 'linear-gradient(120deg, #25263b 70%, #283148 100%)',
-          paddingTop: '20px', // Optional: Ensure some padding at the top
-        }}
+            marginLeft: `${SIDEBAR_WIDTH}px`,
+            width: '100%',
+            minHeight: '100vh',
+            background: 'linear-gradient(120deg, #25263b 70%, #283148 100%)',
+            paddingTop: '20px',
+          }}
       >
         <div className="container py-5">
           <div className="text-center mb-4">
