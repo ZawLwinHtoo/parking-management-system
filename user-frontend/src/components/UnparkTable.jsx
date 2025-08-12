@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { Button, Modal } from "react-bootstrap";
-import { unparkCar, paymentCheckout, getActiveById } from "../api/parking";
+import React, { useMemo, useState } from "react";
+import { Button, Modal, Form } from "react-bootstrap";
+import { paymentCheckout, getActiveById } from "../api/parking";
 
 export default function UnparkTable({ activeList, onUnpark }) {
   const [selected, setSelected] = useState(null);
@@ -9,13 +9,23 @@ export default function UnparkTable({ activeList, onUnpark }) {
   const [payError, setPayError] = useState("");
   const [keyModal, setKeyModal] = useState({ show: false, code: null, expiresAt: null });
   const [feeLoading, setFeeLoading] = useState(false);
+  const [q, setQ] = useState("");
 
-  // Click "Unpark" -> open Payment modal with FRESH data (with fee)
+  const filtered = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return activeList || [];
+    return (activeList || []).filter(
+      (x) =>
+        String(x.carNumber || "").toLowerCase().includes(t) ||
+        String(x.slotNumber || "").toLowerCase().includes(t)
+    );
+  }, [q, activeList]);
+
   const handleUnparkClick = async (car) => {
     setPayError("");
     setFeeLoading(true);
     try {
-      const res = await getActiveById(car.parkedId); // this includes 'fee'
+      const res = await getActiveById(car.parkedId);
       setSelected(res.data);
       setShowPayModal(true);
     } catch (err) {
@@ -26,7 +36,6 @@ export default function UnparkTable({ activeList, onUnpark }) {
     setFeeLoading(false);
   };
 
-  // Pay Now handler (simulate)
   const handlePayNow = async () => {
     setIsPaying(true);
     setPayError("");
@@ -38,48 +47,57 @@ export default function UnparkTable({ activeList, onUnpark }) {
         expiresAt: res.data.expiresAt,
       });
       setShowPayModal(false);
-      onUnpark(); // Refresh lists after paying
+      onUnpark();
     } catch (err) {
       setPayError(err?.response?.data?.message || "Payment failed");
     }
     setIsPaying(false);
   };
 
-  // Close key modal, refresh again for safety
   const handleCloseKeyModal = () => {
     setKeyModal({ show: false, code: null, expiresAt: null });
     setSelected(null);
     onUnpark();
   };
 
-  if (!activeList.length) {
+  if (!activeList || activeList.length === 0) {
     return <div className="alert alert-info text-center mb-0">No cars currently parked.</div>;
   }
-  if (selected) {
-  console.log("Selected for modal:", selected);
-}
 
   return (
     <>
+      {/* small toolbar */}
+      <div className="d-flex align-items-center justify-content-between mb-2">
+        <Form className="w-100" onSubmit={(e) => e.preventDefault()}>
+          <Form.Control
+            size="sm"
+            placeholder="Filter by car number or slot…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="bg-dark text-light"
+          />
+        </Form>
+      </div>
+
       <div className="table-responsive">
-        <table className="table table-dark table-striped table-bordered mb-0">
+        <table className="table table-dark table-striped table-bordered table-sm align-middle mb-0">
           <thead>
             <tr>
-              <th>Car Number</th>
+              <th style={{ whiteSpace: "nowrap" }}>Car Number</th>
               <th>Slot</th>
-              <th>Entry Time</th>
-              <th>Action</th>
+              <th style={{ minWidth: 160 }}>Entry Time</th>
+              <th style={{ width: 110 }}>Action</th>
             </tr>
           </thead>
           <tbody>
-            {activeList.map((item) => (
+            {filtered.map((item) => (
               <tr key={item.parkedId}>
                 <td>{item.carNumber}</td>
                 <td>{item.slotNumber}</td>
                 <td>{new Date(item.entryTime).toLocaleString()}</td>
                 <td>
                   <button
-                    className="btn btn-success btn-sm"
+                    className="btn btn-success btn-sm w-100"
                     onClick={() => handleUnparkClick(item)}
                   >
                     Unpark
@@ -87,6 +105,13 @@ export default function UnparkTable({ activeList, onUnpark }) {
                 </td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={4} className="text-center">
+                  No matches.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -98,51 +123,68 @@ export default function UnparkTable({ activeList, onUnpark }) {
         </Modal.Header>
         <Modal.Body>
           {selected && (
-            <div>
+            <div className="mb-2">
               <div><b>Car Number:</b> {selected.carNumber}</div>
               <div><b>Slot:</b> {selected.slotNumber}</div>
               <div><b>Entry Time:</b> {new Date(selected.entryTime).toLocaleString()}</div>
               <div>
                 <b>Fee:</b>{" "}
-                {feeLoading ? "Loading..." : 
-                  (selected.fee !== undefined && selected.fee !== null
+                {feeLoading
+                  ? "Loading..."
+                  : selected.fee !== undefined && selected.fee !== null
                     ? `${selected.fee} MMK`
-                    : "Calculated at exit")}
+                    : "Calculated at exit"}
               </div>
             </div>
           )}
-          <div className="my-3">
-            <Button
-              variant="primary"
-              onClick={handlePayNow}
-              disabled={isPaying || feeLoading}
-              className="w-100"
-            >
-              {isPaying ? "Processing..." : "Pay Now"}
-            </Button>
-          </div>
-          {payError && <div className="text-danger text-center">{payError}</div>}
+          <Button
+            variant="primary"
+            onClick={handlePayNow}
+            disabled={isPaying || feeLoading}
+            className="w-100"
+          >
+            {isPaying ? "Processing..." : "Pay Now"}
+          </Button>
+          {payError && <div className="text-danger text-center mt-2">{payError}</div>}
         </Modal.Body>
       </Modal>
 
       {/* One-Time Key Modal */}
-      <Modal show={keyModal.show} onHide={handleCloseKeyModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Barrier Unlock Code</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="text-center">
-          <h1 style={{ letterSpacing: "8px" }}>{keyModal.code}</h1>
-          <div className="my-2 text-warning">
-            <b>This key is valid for 5 minutes only!</b>
-          </div>
-          <div>Enter this code at the barrier to exit the parking.</div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseKeyModal}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <Modal
+  show={keyModal.show}
+  onHide={handleCloseKeyModal}
+  centered
+  contentClassName="bg-dark text-light rounded-4 shadow-lg border-0"
+>
+  <Modal.Header
+    closeButton
+    className="border-0"
+    style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)" }}
+  >
+    <Modal.Title className="text-info fw-bold">
+      Barrier Unlock Code
+    </Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body className="text-center">
+    <h1 className="display-4 fw-bold text-primary" style={{ letterSpacing: "8px" }}>
+      {keyModal.code}
+    </h1>
+    <div className="my-3 text-warning fw-bold">
+      This key is valid for 5 minutes only!
+    </div>
+    <p className="mb-0 text-secondary">
+      Enter this code at the barrier to exit the parking.
+    </p>
+  </Modal.Body>
+
+  <Modal.Footer className="border-0">
+    <Button variant="secondary" onClick={handleCloseKeyModal} className="px-4">
+      Close
+    </Button>
+  </Modal.Footer>
+</Modal>
+
     </>
   );
 }
