@@ -1,40 +1,35 @@
-// src/pages/ProfilePage.jsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Form } from 'react-bootstrap';
-import axios from 'axios';
-import Sidebar from '../components/Sidebar';
+import React, { useEffect, useMemo, useState } from "react";
+import { Button, Form } from "react-bootstrap";
+import axios from "axios";
+import Sidebar from "../components/Sidebar";
 
 export default function ProfilePage() {
-  const [user, setUser] = useState(null);       // backend user payload
-  const [form, setForm] = useState({ fullName: '', phone: '' });
-  const [file, setFile] = useState(null);       // selected image file
-  const [preview, setPreview] = useState(null); // UI preview
-  const [saving, setSaving] = useState(false);
-
   const userId = useMemo(
-    () => JSON.parse(localStorage.getItem('user') || '{}')?.id,
+    () => JSON.parse(localStorage.getItem("user") || "{}")?.id,
     []
   );
 
-  // helper: base64 -> data URL
-  const toDataUrl = (b64) => (b64 ? `data:image/*;base64,${b64}` : null);
+  const [user, setUser] = useState(null);
+  const [form, setForm] = useState({ fullName: "", phone: "" });
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const b64ToDataUrl = (b64) => (b64 ? `data:image/*;base64,${b64}` : null);
 
   useEffect(() => {
     if (!userId) return;
     axios
-      .get('/api/profile', { params: { userId } })
-      .then(({ data }) => {
-        setUser(data);
-        setForm({
-          fullName: data?.fullName || '',
-          phone: data?.phone || '',
-        });
-        // show persisted image if present
-        setPreview(toDataUrl(data?.profileImage));
+      .get("/api/profile", { params: { userId } })
+      .then((res) => {
+        const u = res.data || {};
+        setUser(u);
+        setForm({ fullName: u.fullName || "", phone: u.phone || "" });
+        setPreview(b64ToDataUrl(u.profileImage)); // persisted photo
       })
       .catch((err) => {
-        console.error('Load profile failed', err);
-        alert('Load profile failed');
+        console.error("Load profile failed", err);
+        // optional: alert('Failed to load profile');
       });
   }, [userId]);
 
@@ -47,7 +42,7 @@ export default function ProfilePage() {
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
-    setPreview(URL.createObjectURL(f)); // local preview
+    setPreview(URL.createObjectURL(f));
   };
 
   const onSubmit = async (e) => {
@@ -55,106 +50,88 @@ export default function ProfilePage() {
     if (!userId) return;
 
     const fd = new FormData();
-    fd.append('fullName', form.fullName);
-    fd.append('phone', form.phone);
-    if (file) fd.append('file', file);
+    if (file) fd.append("file", file);
+    fd.append("fullName", form.fullName);
+    fd.append("phone", form.phone);
 
     try {
       setSaving(true);
-      // ⛔️ DO NOT set Content-Type header. Let axios set the boundary.
-      const { data } = await axios.post('/api/profile/update', fd, {
+      const { data } = await axios.post("/api/profile/update", fd, {
         params: { userId },
+        // DO NOT set Content-Type; axios will set the proper multipart boundary
       });
 
-      // update UI with new values
       setUser(data);
-      setForm({ fullName: data?.fullName || '', phone: data?.phone || '' });
+      setForm({ fullName: data.fullName || "", phone: data.phone || "" });
+      setPreview(b64ToDataUrl(data.profileImage));
       setFile(null);
-      setPreview(toDataUrl(data?.profileImage)); // reflect DB image
 
-      // keep localStorage user in sync (so topbar initials/name stay updated)
-      const old = JSON.parse(localStorage.getItem('user') || '{}');
-      localStorage.setItem(
-        'user',
-        JSON.stringify({
-          ...old,
-          fullName: data?.fullName,
-          phone: data?.phone,
-        })
-      );
+      // notify the topbar to refresh the avatar
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { userId } }));
 
-      alert('Profile updated successfully');
+      alert("Profile updated successfully");
     } catch (err) {
-      console.error('Save failed', err);
-      alert(err?.response?.data?.message || 'Save failed');
+      console.error("Save failed", err);
+      alert(err?.response?.data?.message || "Failed to update profile");
     } finally {
       setSaving(false);
     }
   };
 
-  const roleText = user?.role ?? '';
-
   return (
-    <div style={{ display: 'flex' }}>
+    <div style={{ display: "flex" }}>
       <Sidebar />
       <div
         style={{
-          marginLeft: '280px',
-          width: '100%',
-          minHeight: '100vh',
-          background: 'linear-gradient(120deg, #25263b 70%, #283148 100%)',
-          paddingTop: 20,
+          marginLeft: "280px",
+          width: "100%",
+          minHeight: "100vh",
+          background: "linear-gradient(120deg, #25263b 70%, #283148 100%)",
+          paddingTop: "20px",
         }}
       >
         <div className="container py-5">
-          <h2 className="mb-4 text-light" style={{ textShadow: '0 2px 10px #0005' }}>
-            Profile
-          </h2>
+          <h2 className="mb-4 text-light">Profile</h2>
 
           <div
             className="card shadow-lg border-0 rounded-4"
-            style={{ background: 'linear-gradient(120deg, #26273a 80%, #344a7b 100%)' }}
+            style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)" }}
           >
             <div className="card-body">
-              {/* Photo uploader */}
               <div className="d-flex flex-column align-items-center mb-4">
                 <div
-                  className="rounded-circle d-inline-flex align-items-center justify-content-center border"
+                  className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
                   style={{
                     width: 120,
                     height: 120,
-                    background: '#3b3f54',
-                    backgroundImage: preview ? `url(${preview})` : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    boxShadow: '0 4px 14px rgba(0,0,0,.35)',
+                    background: "#3b3f54",
+                    backgroundImage: preview ? `url(${preview})` : "none",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
                   }}
-                  aria-label="Profile picture"
                 >
-                  {!preview && '📷'}
+                  {!preview && "📷"}
                 </div>
-                <div className="mt-3 w-100" style={{ maxWidth: 420 }}>
-                  <Form.Control type="file" accept="image/*" onChange={onFileChange} />
-                  <small className="text-secondary d-block mt-2">
-                    JPG/PNG recommended. Image is stored in DB and persists after refresh.
-                  </small>
-                </div>
+                <Form.Control
+                  type="file"
+                  accept="image/*"
+                  onChange={onFileChange}
+                  className="bg-dark text-light"
+                />
               </div>
 
-              {/* Details form */}
               <Form onSubmit={onSubmit}>
-                {/* Username (read-only) */}
                 <Form.Group className="mb-3">
                   <Form.Label className="text-light">Username</Form.Label>
                   <Form.Control
                     type="text"
-                    value={user?.username || ''}
+                    value={user?.username || ""}
                     disabled
                     className="bg-dark text-light"
                   />
                 </Form.Group>
 
-                {/* Full Name (editable) */}
                 <Form.Group className="mb-3">
                   <Form.Label className="text-light">Full Name</Form.Label>
                   <Form.Control
@@ -167,18 +144,16 @@ export default function ProfilePage() {
                   />
                 </Form.Group>
 
-                {/* Email (read-only) */}
                 <Form.Group className="mb-3">
                   <Form.Label className="text-light">Email</Form.Label>
                   <Form.Control
                     type="text"
-                    value={user?.email || ''}
+                    value={user?.email || ""}
                     disabled
                     className="bg-dark text-light"
                   />
                 </Form.Group>
 
-                {/* Phone (editable) */}
                 <Form.Group className="mb-3">
                   <Form.Label className="text-light">Phone</Form.Label>
                   <Form.Control
@@ -191,14 +166,18 @@ export default function ProfilePage() {
                   />
                 </Form.Group>
 
-                {/* Role (read-only) */}
                 <Form.Group className="mb-4">
                   <Form.Label className="text-light">Role</Form.Label>
-                  <Form.Control type="text" value={roleText} disabled className="bg-dark text-light" />
+                  <Form.Control
+                    type="text"
+                    value={user?.role || ""}
+                    disabled
+                    className="bg-dark text-light"
+                  />
                 </Form.Group>
 
                 <Button type="submit" disabled={saving} className="w-100 btn-primary">
-                  {saving ? 'Saving…' : 'Save Changes'}
+                  {saving ? "Saving…" : "Save Changes"}
                 </Button>
               </Form>
             </div>
