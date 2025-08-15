@@ -34,9 +34,6 @@ public class User {
     @Column(length = 20)
     private String phone;
 
-    @Column(name = "profile_image", length = 255)
-    private String profileImage;
-
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ParkedCar> parkedCars;
 
@@ -74,9 +71,14 @@ public class User {
         return phone;
     }
 
-    public String getProfileImage() {
-        return profileImage;
-    }
+    @Lob
+    @Column(name = "profile_image", columnDefinition = "MEDIUMBLOB")
+    private byte[] profileImage;
+
+
+    public byte[] getProfileImage() { return profileImage; }
+    public void setProfileImage(byte[] profileImage) { this.profileImage = profileImage; }
+
 
     public List<ParkedCar> getParkedCars() {
         return parkedCars;
@@ -110,9 +112,6 @@ public class User {
         this.phone = phone;
     }
 
-    public void setProfileImage(String profileImage) {
-        this.profileImage = profileImage;
-    }
 
     public void setParkedCars(List<ParkedCar> parkedCars) {
         this.parkedCars = parkedCars;

@@ -8,6 +8,11 @@ import com.parking_system.backend.model.Feedback;
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
-    // Spring will auto-implement this based on the method name
     List<Feedback> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // ✅ add this to match your current service call
+    boolean existsByUserIdAndStatus(Long userId, String status);
+
+    // ✅ optional: simpler signal “has any admin reply at all”
+    boolean existsByUserIdAndAdminReplyIsNotNull(Long userId);
 }

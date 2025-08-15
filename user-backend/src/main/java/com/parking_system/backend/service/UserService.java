@@ -2,28 +2,30 @@ package com.parking_system.backend.service;
 
 import com.parking_system.backend.model.User;
 import com.parking_system.backend.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService {
+    private final UserRepository userRepository;
+    public UserService(UserRepository userRepository) { this.userRepository = userRepository; }
 
-    @Autowired
-    private UserRepository userRepository;
-
-    // Method to get user by ID
     public User getUserById(Integer userId) {
-        return userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    // Method to update the user profile
-    public User updateUser(Integer userId, User updatedUser) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Update user fields, but don't allow changing email or role
-        user.setFullName(updatedUser.getFullName());
-        user.setPhone(updatedUser.getPhone());
-        user.setProfileImage(updatedUser.getProfileImage());  // If profile image is updated
+    @Transactional
+    public User updateUser(Integer userId, String fullName, String phone, byte[] profileImage) {
+        User user = getUserById(userId);
+        if (fullName != null) user.setFullName(fullName);
+        if (phone != null) user.setPhone(phone);
+        if (profileImage != null) user.setProfileImage(profileImage);
         return userRepository.save(user);
+    }
+
+    public byte[] getProfileImage(Integer userId) {
+        User user = getUserById(userId);
+        return user.getProfileImage();
     }
 }
