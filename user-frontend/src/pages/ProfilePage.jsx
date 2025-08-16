@@ -1,170 +1,187 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Form } from 'react-bootstrap';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';  // Sidebar for consistent layout
+import React, { useEffect, useMemo, useState } from "react";
+import { Button, Form } from "react-bootstrap";
+import axios from "axios";
+import Sidebar from "../components/Sidebar";
 
 export default function ProfilePage() {
-  const [user, setUser] = useState({});
-  const [updatedUser, setUpdatedUser] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [imagePreview, setImagePreview] = useState(null); // For image preview
-  const navigate = useNavigate();
+  const userId = useMemo(
+    () => JSON.parse(localStorage.getItem("user") || "{}")?.id,
+    []
+  );
 
-  const userId = JSON.parse(localStorage.getItem('user') || '{}').id;
+  const [user, setUser] = useState(null);
+  const [form, setForm] = useState({ fullName: "", phone: "" });
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const b64ToDataUrl = (b64) => (b64 ? `data:image/*;base64,${b64}` : null);
 
   useEffect(() => {
-    // Fetch user profile info
-    axios.get(`/api/profile?userId=${userId}`)
-      .then(res => setUser(res.data))
-      .catch(err => console.error(err));
+    if (!userId) return;
+    axios
+      .get("/api/profile", { params: { userId } })
+      .then((res) => {
+        const u = res.data || {};
+        setUser(u);
+        setForm({ fullName: u.fullName || "", phone: u.phone || "" });
+        setPreview(b64ToDataUrl(u.profileImage)); // persisted photo
+      })
+      .catch((err) => {
+        console.error("Load profile failed", err);
+        // optional: alert('Failed to load profile');
+      });
   }, [userId]);
 
-  const handleUpdateProfile = async (e) => {
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  };
+
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+  };
+
+  const onSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (!userId) return;
+
+    const fd = new FormData();
+    if (file) fd.append("file", file);
+    fd.append("fullName", form.fullName);
+    fd.append("phone", form.phone);
 
     try {
-      const response = await axios.post(`/api/profile/update?userId=${userId}`, updatedUser);
-      setUser(response.data);
+      setSaving(true);
+      const { data } = await axios.post("/api/profile/update", fd, {
+        params: { userId },
+        // DO NOT set Content-Type; axios will set the proper multipart boundary
+      });
+
+      setUser(data);
+      setForm({ fullName: data.fullName || "", phone: data.phone || "" });
+      setPreview(b64ToDataUrl(data.profileImage));
+      setFile(null);
+
+      // notify the topbar to refresh the avatar
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { userId } }));
+
       alert("Profile updated successfully");
-      navigate('/dashboard'); // Navigate to dashboard after update
     } catch (err) {
-      console.error(err);
-      alert("Failed to update profile");
+      console.error("Save failed", err);
+      alert(err?.response?.data?.message || "Failed to update profile");
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setUpdatedUser({ ...updatedUser, [name]: value });
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Show image preview
-      setImagePreview(URL.createObjectURL(file));
-
-      // Handle file upload
-      const formData = new FormData();
-      formData.append('file', file);
-
-      axios.post('/api/upload', formData)
-        .then(response => {
-          // Assume backend returns a URL to the uploaded image
-          setUpdatedUser({ ...updatedUser, profileImage: response.data.url });
-        })
-        .catch(err => {
-          console.error('Image upload failed', err);
-          alert('Failed to upload image');
-        });
+      setSaving(false);
     }
   };
 
   return (
-    <div style={{ display: 'flex' }}>
-      {/* Sidebar */}
+    <div style={{ display: "flex" }}>
       <Sidebar />
-
-      {/* Main Content */}
       <div
         style={{
-          marginLeft: '280px', // Sidebar width
-          width: '100%',
-          minHeight: '100vh',
-          background: 'linear-gradient(120deg, #25263b 70%, #283148 100%)',
-          paddingTop: '20px',
-          paddingLeft: '20px',
+          marginLeft: "280px",
+          width: "100%",
+          minHeight: "100vh",
+          background: "linear-gradient(120deg, #25263b 70%, #283148 100%)",
+          paddingTop: "20px",
         }}
       >
         <div className="container py-5">
           <h2 className="mb-4 text-light">Profile</h2>
 
-          <Form onSubmit={handleUpdateProfile} style={{ backgroundColor: '#2d2f45', padding: '30px', borderRadius: '10px' }}>
-            {/* Profile Image Section */}
-            <div className="d-flex flex-column align-items-center mb-4">
-              <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                style={{
-                  width: '120px', height: '120px', background: '#3b3f54', marginBottom: '10px',
-                  backgroundImage: `url(${imagePreview || user.profileImage})`, backgroundSize: 'cover', backgroundPosition: 'center'
-                }}
-              >
-                {!imagePreview && !user.profileImage && '📷'}
+          <div
+            className="card shadow-lg border-0 rounded-4"
+            style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)" }}
+          >
+            <div className="card-body">
+              <div className="d-flex flex-column align-items-center mb-4">
+                <div
+                  className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                  style={{
+                    width: 120,
+                    height: 120,
+                    background: "#3b3f54",
+                    backgroundImage: preview ? `url(${preview})` : "none",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                  }}
+                >
+                  {!preview && "📷"}
+                </div>
+                <Form.Control
+                  type="file"
+                  accept="image/*"
+                  onChange={onFileChange}
+                  className="bg-dark text-light"
+                />
               </div>
-              <Form.Control
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="btn btn-outline-light w-100"
-              />
+
+              <Form onSubmit={onSubmit}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-light">Username</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={user?.username || ""}
+                    disabled
+                    className="bg-dark text-light"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-light">Full Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="fullName"
+                    value={form.fullName}
+                    onChange={onChange}
+                    required
+                    className="bg-dark text-light"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-light">Email</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={user?.email || ""}
+                    disabled
+                    className="bg-dark text-light"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-light">Phone</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="phone"
+                    value={form.phone}
+                    onChange={onChange}
+                    required
+                    className="bg-dark text-light"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-4">
+                  <Form.Label className="text-light">Role</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={user?.role || ""}
+                    disabled
+                    className="bg-dark text-light"
+                  />
+                </Form.Group>
+
+                <Button type="submit" disabled={saving} className="w-100 btn-primary">
+                  {saving ? "Saving…" : "Save Changes"}
+                </Button>
+              </Form>
             </div>
-
-            {/* Username */}
-            <Form.Group className="mb-3">
-              <Form.Label className="text-light">Username</Form.Label>
-              <Form.Control
-                type="text"
-                value={user.username || ''}
-                disabled
-                className="bg-dark text-light"
-              />
-            </Form.Group>
-
-            {/* Full Name */}
-            <Form.Group className="mb-3">
-              <Form.Label className="text-light">Full Name</Form.Label>
-              <Form.Control
-                type="text"
-                name="fullName"
-                value={updatedUser.fullName || user.fullName || ''}
-                onChange={handleInputChange}
-                required
-                className="bg-dark text-light"
-              />
-            </Form.Group>
-
-            {/* Email */}
-            <Form.Group className="mb-3">
-              <Form.Label className="text-light">Email</Form.Label>
-              <Form.Control
-                type="text"
-                value={user.email || ''}
-                disabled
-                className="bg-dark text-light"
-              />
-            </Form.Group>
-
-            {/* Phone */}
-            <Form.Group className="mb-3">
-              <Form.Label className="text-light">Phone</Form.Label>
-              <Form.Control
-                type="text"
-                name="phone"
-                value={updatedUser.phone || user.phone || ''}
-                onChange={handleInputChange}
-                required
-                className="bg-dark text-light"
-              />
-            </Form.Group>
-
-            {/* Role */}
-            <Form.Group className="mb-3">
-              <Form.Label className="text-light">Role</Form.Label>
-              <Form.Control
-                type="text"
-                value={user.role || ''}
-                disabled
-                className="bg-dark text-light"
-              />
-            </Form.Group>
-
-            <Button type="submit" disabled={isLoading} className="w-100 btn-primary">
-              {isLoading ? "Updating..." : "Save Changes"}
-            </Button>
-          </Form>
+          </div>
         </div>
       </div>
     </div>

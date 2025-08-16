@@ -3,12 +3,14 @@ package com.parking_system.backend.service;
 import com.parking_system.backend.dto.*;
 import com.parking_system.backend.model.*;
 import com.parking_system.backend.repository.*;
-
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+// imports at top (add)
+import java.math.RoundingMode;
 
 import java.time.LocalDateTime;
 import java.time.Duration;
@@ -25,11 +27,18 @@ public class ParkingServiceImpl implements ParkingService {
     @Autowired private PaymentRepository paymentRepo;
     @Autowired private BuildingRepository buildingRepo;
     @Autowired private SlotKeyRepository slotKeyRepo;
-
+    private static final Pattern PLATE_RE = Pattern.compile("^[1-9]\\d?[A-Z]-\\d{4}$");
     // PARK: generate one-time key and attach to ActiveDto
     @Override
     @Transactional
     public ActiveDto park(ParkRequest req) {
+        String raw = Optional.ofNullable(req.getCarNumber()).orElse("").trim().toUpperCase();
+        if (!PLATE_RE.matcher(raw).matches()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid car number format. Use like 7C-7351"
+            );
+        }
         // Defensive check: Prevent double parking
         if (parkedCarRepo.findByCarNumberAndExitTimeIsNull(req.getCarNumber()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Car is already parked!");
@@ -88,16 +97,18 @@ public class ParkingServiceImpl implements ParkingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active car not found: " + req.getCarNumber()));
 
         car.setExitTime(LocalDateTime.now());
-        Duration dur = Duration.between(car.getEntryTime(), car.getExitTime());
-        long hours = Math.max(1, dur.toHours());
 
-        // Use String slotType for rate lookup
+// Get rate per hour from DB
         BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
                 .getRatePerHour();
-        BigDecimal fee = rate.multiply(BigDecimal.valueOf(hours));
+
+// ✅ per-minute pro-rate
+        BigDecimal fee = computeFee(car.getEntryTime(), car.getExitTime(), rate);
+
         car.setFee(fee);
         parkedCarRepo.save(car);
+
 
         Slot slot = car.getSlot();
         slot.setIsOccupied(false);
@@ -204,22 +215,22 @@ public class ParkingServiceImpl implements ParkingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found"));
 
         // Set exitTime (if not set)
+        // Set exitTime (if not set)
         if (car.getExitTime() == null) {
             car.setExitTime(LocalDateTime.now());
         }
 
-        // Always calculate fee
-        LocalDateTime entry = car.getEntryTime();
-        LocalDateTime exit = car.getExitTime();
-        long hours = Math.max(1, Duration.between(entry, exit).toHours());
-
-        // Get fixed rate from DB
+// Get fixed rate from DB
         BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
                 .getRatePerHour();
-        BigDecimal fee = rate.multiply(BigDecimal.valueOf(hours));
+
+// ✅ per-minute pro-rate
+        BigDecimal fee = computeFee(car.getEntryTime(), car.getExitTime(), rate);
+
         car.setFee(fee);
         parkedCarRepo.save(car);
+
 
         // Save payment (simulate "paid")
         Payment payment = paymentRepo.findByParkedCar(car).orElse(new Payment());
@@ -262,18 +273,31 @@ public class ParkingServiceImpl implements ParkingService {
         // Calculate a "preview" fee even if not unparked yet!
         BigDecimal fee = car.getFee();
         if (fee == null) {
-            LocalDateTime entry = car.getEntryTime();
-            LocalDateTime exit = LocalDateTime.now(); // Use NOW as pretend-exit time
-            long hours = Math.max(1, Duration.between(entry, exit).toHours());
-            // Lookup rate
             BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
                     .getRatePerHour();
-            fee = rate.multiply(BigDecimal.valueOf(hours));
+
+            // ✅ preview uses now as exit for a live estimate
+            fee = computeFee(car.getEntryTime(), LocalDateTime.now(), rate);
         }
         dto.setFee(fee);
+
         // <------ THIS!
         return dto;
+    }
+    // Add this helper inside ParkingServiceImpl
+    private BigDecimal computeFee(LocalDateTime entry, LocalDateTime exit, BigDecimal hourlyRate) {
+        if (entry == null || exit == null || hourlyRate == null) {
+            return BigDecimal.ZERO;
+        }
+        long minutes = Duration.between(entry, exit).toMinutes();
+        if (minutes <= 0) {
+            return BigDecimal.ZERO; // treat <1 min as free; change to 1 if you want a minimum 1-min charge
+        }
+        // fee = rate_per_hour * (minutes / 60), rounded UP to whole MMK
+        return hourlyRate
+                .multiply(BigDecimal.valueOf(minutes))
+                .divide(BigDecimal.valueOf(60), 0, RoundingMode.CEILING);
     }
 
 

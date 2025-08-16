@@ -20,12 +20,7 @@ export default function Sidebar({ onLogout }) {
       {/* Brand */}
       <div className="px-4 pt-4 pb-3 border-bottom border-secondary">
         <div className="d-flex align-items-center gap-2">
-          <div
-            className="rounded-circle d-inline-flex align-items-center justify-content-center"
-            style={{ width: 36, height: 36, background: '#3b3f54' }}
-          >
-            🚗
-          </div>
+          
           <div>
             <h3 className="m-0 fw-bold" style={{ letterSpacing: '0.5px' }}>SPARK</h3>
             <small className="text-secondary">Smart Parking</small>
