@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Dropdown } from "react-bootstrap";
 
 export default function GlobalTopbar() {
   const location = useLocation();
@@ -21,8 +22,6 @@ export default function GlobalTopbar() {
     setAvatarSrc(`/api/profile/photo?userId=${userId}&t=${cacheKey}`);
   }, [userId, cacheKey]);
 
-  useEffect(() => setAvatarError(false), [avatarSrc]);
-
   useEffect(() => {
     const bump = () => setCacheKey(Date.now());
     window.addEventListener("profile-updated", bump);
@@ -38,23 +37,23 @@ export default function GlobalTopbar() {
     window.location.href = "/login";
   };
 
+  if (shouldHide) return null;
+
   return (
     <div
       style={{
-        display: shouldHide ? "none" : "block",
-        position: "absolute",          // <-- no layout space, overlays page
+        position: "fixed",
         top: 12,
         right: 16,
         zIndex: 1080,
         background: "transparent",
-        pointerEvents: "none",         // wrapper transparent to clicks
       }}
     >
-      <div className="dropdown" style={{ pointerEvents: "auto" }}>
-        <button
-          className="btn p-0 border-0 bg-transparent position-relative"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
+      <Dropdown align="end">
+        <Dropdown.Toggle
+          variant="link"
+          className="p-0 border-0 bg-transparent text-decoration-none"
+          id="topbar-user-menu"
           title={user.fullName || user.username || "Profile"}
         >
           {!avatarError ? (
@@ -75,25 +74,21 @@ export default function GlobalTopbar() {
               {initials}
             </div>
           )}
-        </button>
+        </Dropdown.Toggle>
 
-        <ul className="dropdown-menu dropdown-menu-end">
-          <li className="dropdown-header small">
+        <Dropdown.Menu>
+          <div className="dropdown-header small">
             Signed in as <b>{user.fullName || user.username}</b>
-          </li>
-          <li>
-            <button className="dropdown-item" onClick={() => navigate("/profile")}>
-              Profile
-            </button>
-          </li>
-          <li><hr className="dropdown-divider" /></li>
-          <li>
-            <button className="dropdown-item text-danger" onClick={logout}>
-              Logout
-            </button>
-          </li>
-        </ul>
-      </div>
+          </div>
+          <Dropdown.Item onClick={() => navigate("/profile")}>
+            Profile
+          </Dropdown.Item>
+          <Dropdown.Divider />
+          <Dropdown.Item className="text-danger" onClick={logout}>
+            Logout
+          </Dropdown.Item>
+        </Dropdown.Menu>
+      </Dropdown>
     </div>
   );
 }

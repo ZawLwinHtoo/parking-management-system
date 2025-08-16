@@ -4,6 +4,26 @@ import { NavLink } from 'react-router-dom';
 export default function Sidebar({ onLogout }) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+  const linkBase =
+    'nav-link d-flex align-items-center rounded-3 px-3 py-2 text-decoration-none';
+
+  const linkStyle = {
+    fontSize: '0.95rem',
+    lineHeight: 1.1,
+    color: '#d8dbe3',
+    transition: 'background .15s ease, color .15s ease',
+  };
+
+  const activeStyle = {
+    background: 'rgba(255,255,255,.08)',
+    color: '#fff',
+    boxShadow: 'inset 0 0 0 1px rgba(120,150,220,.25)',
+    borderLeft: '3px solid #5a7bdc',
+  };
+
+  const linkClasses = ({ isActive }) => `${linkBase} ${isActive ? 'active' : ''}`;
+  const getItemStyle = (isActive) => ({ ...linkStyle, ...(isActive ? activeStyle : null) });
+
   return (
     <aside
       className="bg-dark text-light d-flex flex-column"
@@ -19,89 +39,90 @@ export default function Sidebar({ onLogout }) {
     >
       {/* Brand */}
       <div className="px-4 pt-4 pb-3 border-bottom border-secondary">
-        <div className="d-flex align-items-center gap-2">
-          
-          <div>
-            <h3 className="m-0 fw-bold" style={{ letterSpacing: '0.5px' }}>SPARK</h3>
-            <small className="text-secondary">Smart Parking</small>
-          </div>
+        <div>
+          <h1
+            className="m-0 fw-bold"
+            style={{
+              // slightly larger + responsive, uses your Poppins heading font
+              fontFamily: 'var(--brand-heading, Poppins, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif)',
+              fontSize: 'clamp(2.25rem, 2rem + 0.8vw, 2.8rem)',
+              letterSpacing: '1px',
+              lineHeight: 1,
+            }}
+          >
+            SPARK
+          </h1>
+          <small
+            className="text-secondary text-uppercase"
+            style={{ letterSpacing: '0.12rem', fontSize: '0.7rem' }}
+          >
+            Smart Parking
+          </small>
         </div>
+
         {user?.username && (
           <div className="mt-3 small text-secondary">
-            Signed in as <span className="text-light">{user.fullName || user.username}</span>
+            Signed in as{' '}
+            <span className="text-light">{user.fullName || user.username}</span>
           </div>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-grow-1 overflow-auto px-3 py-3">
-        <ul className="nav nav-pills flex-column gap-2">
+      <nav className="flex-grow-1 overflow-auto px-2 py-3">
+        <ul className="nav nav-pills flex-column gap-1">
           <li className="nav-item">
             <NavLink
               to="/dashboard"
               end
-              className={({ isActive }) =>
-                `nav-link d-flex align-items-center gap-2 rounded-3 px-3 py-2 fs-5 ${
-                  isActive ? 'active' : 'text-light'
-                }`
-              }
+              className={linkClasses}
+              style={({ isActive }) => getItemStyle(isActive)}
             >
-              Dashboard
+              <span>Dashboard</span>
             </NavLink>
           </li>
 
           <li className="nav-item">
             <NavLink
               to="/active"
-              className={({ isActive }) =>
-                `nav-link d-flex align-items-center gap-2 rounded-3 px-3 py-2 fs-5 ${
-                  isActive ? 'active' : 'text-light'
-                }`
-              }
+              className={linkClasses}
+              style={({ isActive }) => getItemStyle(isActive)}
             >
-              Active Status
+              <span>Active Status</span>
             </NavLink>
           </li>
 
           <li className="nav-item">
             <NavLink
               to="/history"
-              className={({ isActive }) =>
-                `nav-link d-flex align-items-center gap-2 rounded-3 px-3 py-2 fs-5 ${
-                  isActive ? 'active' : 'text-light'
-                }`
-              }
+              className={linkClasses}
+              style={({ isActive }) => getItemStyle(isActive)}
             >
-              Parking History
+              <span>Parking History</span>
             </NavLink>
           </li>
-
-          <div className="border-top border-secondary my-2" />
-
+          <li className="nav-item">
+          <NavLink to="/about" className={linkClasses} style={({ isActive }) => getItemStyle(isActive)}>
+              <span>About</span>
+          </NavLink>
+          </li>
           <li className="nav-item">
             <NavLink
               to="/contact"
-              className={({ isActive }) =>
-                `nav-link d-flex align-items-center gap-2 rounded-3 px-3 py-2 fs-5 ${
-                  isActive ? 'active' : 'text-light'
-                }`
-              }
+              className={linkClasses}
+              style={({ isActive }) => getItemStyle(isActive)}
             >
-              Contact
+              <span>Contact</span>
             </NavLink>
           </li>
 
-          {/* Profile link */}
           <li className="nav-item">
             <NavLink
               to="/profile"
-              className={({ isActive }) =>
-                `nav-link d-flex align-items-center gap-2 rounded-3 px-3 py-2 fs-5 ${
-                  isActive ? 'active' : 'text-light'
-                }`
-              }
+              className={linkClasses}
+              style={({ isActive }) => getItemStyle(isActive)}
             >
-              Profile
+              <span>Profile</span>
             </NavLink>
           </li>
         </ul>
@@ -112,6 +133,7 @@ export default function Sidebar({ onLogout }) {
         <button
           onClick={onLogout}
           className="btn btn-outline-light w-100 fw-semibold py-2 rounded-3"
+          style={{ fontSize: '.9rem' }}
         >
           Logout
         </button>

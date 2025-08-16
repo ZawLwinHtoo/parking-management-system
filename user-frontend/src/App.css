@@ -1,44 +1,35 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* ---- Brand fonts ---- */
+:root{
+  --brand-heading: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
+  --brand-body: 'Open Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
+
+  /* Make Bootstrap use Open Sans by default */
+  --bs-font-sans-serif: var(--brand-body);
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
+/* ---- Global resets ---- */
 html, body, #root { height: 100%; }
-body { margin: 0; background-color: transparent; }
+body {
+  margin: 0;
+  background: transparent;      /* let each page provide its own bg */
+  font-family: var(--brand-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings & key titles use Poppins */
+h1, h2, h3, h4, h5, h6,
+.display-1, .display-2, .display-3, .display-4,
+.navbar-brand, .offcanvas-title, .modal-title,
+.sidebar-brand, .brand-title {
+  font-family: var(--brand-heading);
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
+/* Optional utilities */
+.font-heading { font-family: var(--brand-heading) !important; }
+.font-body { font-family: var(--brand-body) !important; }
+
+/* ---- Remove Vite demo styles that were constraining layout ---- */
+/* (Deleted #root max-width/padding/text-align and logo demo rules) */
