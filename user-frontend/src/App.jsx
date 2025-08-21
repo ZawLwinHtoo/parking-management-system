@@ -9,28 +9,26 @@ import ActiveStatusPage from './pages/ActiveStatusPage';
 import HistoryPage from './pages/HistoryPage';
 import KeyEntry from './pages/KeyEntry';
 import ProfilePage from './pages/ProfilePage';
-import AboutPage from './pages/AboutPage';   // <-- add this
+import AboutPage from './pages/AboutPage';
+import GlobalTopbar from './components/GlobalTopbar';   // <-- add this
 
 export default function App() {
   return (
     <BrowserRouter>
+      <GlobalTopbar />   {/* <-- render once, always available */}
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-        {/* Public */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/active" element={<PrivateRoute><ActiveStatusPage /></PrivateRoute>} />
-        <Route path="/history" element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
-        <Route path="/contact" element={<PrivateRoute><ContactPage /></PrivateRoute>} />
-        <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+        <Route path="/active"    element={<PrivateRoute><ActiveStatusPage /></PrivateRoute>} />
+        <Route path="/history"   element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
+        <Route path="/contact"   element={<PrivateRoute><ContactPage /></PrivateRoute>} />
+        <Route path="/profile"   element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
         <Route path="/key-entry" element={<PrivateRoute><KeyEntry /></PrivateRoute>} />
-        <Route path="/about" element={<PrivateRoute><AboutPage /></PrivateRoute>} /> {/* <-- new */}
+        <Route path="/about"     element={<PrivateRoute><AboutPage /></PrivateRoute>} />
 
-        {/* Fallback */}
         <Route
           path="*"
           element={

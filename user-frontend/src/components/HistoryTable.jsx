@@ -123,7 +123,7 @@ export default function HistoryTable({ historyList = [] }) {
                 <tr key={item.parkedId}>
                   <td className="fw-semibold">{item.carNumber}</td>
                   <td>
-                    <span className="badge bg-secondary-subtle text-light border border-secondary">
+                    <span className="badge bg-primary text-light border border-secondary">
                       {item.buildingName || '—'}
                     </span>
                   </td>

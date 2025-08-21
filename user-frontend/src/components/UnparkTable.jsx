@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Button, Modal, Form } from "react-bootstrap";
+import { Button, Modal, Form, Badge, Spinner } from "react-bootstrap";
 import { paymentCheckout, getActiveById } from "../api/parking";
 
 export default function UnparkTable({ activeList, onUnpark }) {
@@ -10,18 +10,17 @@ export default function UnparkTable({ activeList, onUnpark }) {
   const [keyModal, setKeyModal] = useState({ show: false, code: null, expiresAt: null });
   const [feeLoading, setFeeLoading] = useState(false);
   const [q, setQ] = useState("");
-
-  // ✅ store receipt details after successful payment
-  const [receipt, setReceipt] = useState(null);
+  const [receipt, setReceipt] = useState(null); // for export
 
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (!t) return activeList || [];
-    return (activeList || []).filter(
-      (x) =>
-        String(x.carNumber || "").toLowerCase().includes(t) ||
-        String(x.slotNumber || "").toLowerCase().includes(t)
-    );
+    return (activeList || []).filter((x) => {
+      const car = String(x.carNumber || "").toLowerCase();
+      const slot = String(x.slotNumber || "").toLowerCase();
+      const bldg = String(x.buildingName || "").toLowerCase();
+      return car.includes(t) || slot.includes(t) || bldg.includes(t);
+    });
   }, [q, activeList]);
 
   const handleUnparkClick = async (car) => {
@@ -31,7 +30,7 @@ export default function UnparkTable({ activeList, onUnpark }) {
       const res = await getActiveById(car.parkedId);
       setSelected(res.data);
       setShowPayModal(true);
-    } catch (err) {
+    } catch {
       setSelected({ ...car, fee: null });
       setPayError("Could not load latest info");
       setShowPayModal(true);
@@ -47,26 +46,19 @@ export default function UnparkTable({ activeList, onUnpark }) {
       const res = await paymentCheckout(selected.parkedId);
       const exitIso = new Date().toISOString();
 
-      // Save receipt data for export
       setReceipt({
         parkedId: selected.parkedId,
         carNumber: selected.carNumber,
         slotNumber: selected.slotNumber,
         buildingName: selected.buildingName,
         entryTime: selected.entryTime,
-        exitTime: exitIso,           // backend sets exitTime≈now; we mirror that
+        exitTime: exitIso,
         fee: res?.data?.fee ?? selected.fee,
       });
 
-      // Show the one-time key
-      setKeyModal({
-        show: true,
-        code: res.data.code,
-        expiresAt: res.data.expiresAt,
-      });
-
+      setKeyModal({ show: true, code: res.data.code, expiresAt: res.data.expiresAt });
       setShowPayModal(false);
-      onUnpark(); // refresh lists
+      onUnpark();
     } catch (err) {
       setPayError(err?.response?.data?.message || "Payment failed");
     }
@@ -76,31 +68,23 @@ export default function UnparkTable({ activeList, onUnpark }) {
   const handleCloseKeyModal = () => {
     setKeyModal({ show: false, code: null, expiresAt: null });
     setSelected(null);
-    // keep `receipt` so user can still download if they reopen a new payment shortly after
     onUnpark();
   };
 
   // ---------- Receipt helpers ----------
-  const fmtDate = (ts) =>
-    ts ? new Date(ts).toLocaleString() : "-";
-  const fmtMoney = (n) =>
-    n == null ? "-" : `${Number(n).toLocaleString()} MMK`;
+  const fmtDate = (ts) => (ts ? new Date(ts).toLocaleString() : "-");
+  const fmtMoney = (n) => (n == null ? "-" : `${Number(n).toLocaleString()} MMK`);
 
-  // Build a crisp canvas receipt (no deps)
   const buildReceiptCanvas = async (rec, width = 900, height = 600) => {
-    const pad = 36;
-    const line = 34;
+    const pad = 36, line = 34;
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext("2d");
 
     // Background
     const grd = ctx.createLinearGradient(0, 0, width, height);
-    grd.addColorStop(0, "#1f2233");
-    grd.addColorStop(1, "#2b365b");
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, width, height);
+    grd.addColorStop(0, "#1f2233"); grd.addColorStop(1, "#2b365b");
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, width, height);
 
     // Card
     ctx.fillStyle = "rgba(255,255,255,0.06)";
@@ -116,7 +100,6 @@ export default function UnparkTable({ activeList, onUnpark }) {
 
     // Divider
     ctx.strokeStyle = "rgba(255,255,255,0.15)";
-    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(pad * 2, pad * 2 + 24);
     ctx.lineTo(width - pad * 2, pad * 2 + 24);
@@ -130,14 +113,15 @@ export default function UnparkTable({ activeList, onUnpark }) {
       ctx.fillText(label, pad * 2, y);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(String(value || "-"), pad * 2 + 180, y);
-      y += line;
+      y += 34;
     };
 
+    const d = (x) => (x ? new Date(x).toLocaleString() : "-");
     drawRow("Car Number:", rec.carNumber);
     drawRow("Building:", rec.buildingName);
     drawRow("Slot:", rec.slotNumber);
-    drawRow("Entry Time:", fmtDate(rec.entryTime));
-    drawRow("Exit Time:", fmtDate(rec.exitTime));
+    drawRow("Entry Time:", d(rec.entryTime));
+    drawRow("Exit Time:", d(rec.exitTime));
     drawRow("Fee Paid:", fmtMoney(rec.fee));
 
     // Footer
@@ -145,7 +129,7 @@ export default function UnparkTable({ activeList, onUnpark }) {
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.font = "14px system-ui, -apple-system, Segoe UI, Roboto";
     ctx.fillText(
-      `Receipt #${rec.parkedId}  •  Generated ${fmtDate(new Date().toISOString())}`,
+      `Receipt #${rec.parkedId}  •  Generated ${d(new Date().toISOString())}`,
       pad * 2,
       y
     );
@@ -165,20 +149,15 @@ export default function UnparkTable({ activeList, onUnpark }) {
   const downloadPDF = async () => {
     if (!receipt) return;
     try {
-      // lazy-load jsPDF (install once: npm i jspdf)
       const { jsPDF } = await import("jspdf");
       const canvas = await buildReceiptCanvas(receipt, 1000, 700);
       const img = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "pt",
-        format: [canvas.width, canvas.height],
-      });
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [canvas.width, canvas.height] });
       pdf.addImage(img, "PNG", 0, 0, canvas.width, canvas.height);
       pdf.save(`parking-receipt-${receipt.parkedId}.pdf`);
     } catch (e) {
       console.error(e);
-      alert('PDF export needs jsPDF. Run:  npm i jspdf');
+      alert("PDF export needs jsPDF. Run: npm i jspdf");
     }
   };
   // -------------------------------------
@@ -187,50 +166,78 @@ export default function UnparkTable({ activeList, onUnpark }) {
     return <div className="alert alert-info text-center mb-0">No cars currently parked.</div>;
   }
 
+  const total = activeList.length;
+  const shown = filtered.length;
+
   return (
     <>
-      {/* small toolbar */}
+      {/* Toolbar */}
       <div className="d-flex align-items-center justify-content-between mb-2">
-        <Form className="w-100" onSubmit={(e) => e.preventDefault()}>
+        <Form className="d-flex gap-2 w-100" onSubmit={(e) => e.preventDefault()}>
           <Form.Control
             size="sm"
-            placeholder="Filter by car number or slot…"
+            placeholder="Search by car, slot, or building…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="bg-dark text-light"
           />
+          {q && (
+            <Button size="sm" variant="outline-light" onClick={() => setQ("")}>
+              Clear
+            </Button>
+          )}
         </Form>
+        <div className="ms-3">
+          <Badge bg="secondary">
+            {shown}/{total}
+          </Badge>
+        </div>
       </div>
 
-      <div className="table-responsive">
-        <table className="table table-dark table-striped table-bordered table-sm align-middle mb-0">
-          <thead>
+      {/* Table */}
+      <div className="table-responsive" style={{ maxHeight: 420 }}>
+        <table className="table table-dark table-striped table-hover table-bordered table-sm align-middle mb-0">
+          <thead
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 1,
+              background: "rgba(33,37,41,0.98)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
             <tr>
               <th style={{ whiteSpace: "nowrap" }}>Car Number</th>
+              <th>Building</th>
               <th>Slot</th>
               <th style={{ minWidth: 160 }}>Entry Time</th>
-              <th style={{ width: 110 }}>Action</th>
+              <th style={{ width: 120 }} className="text-center">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((item) => (
               <tr key={item.parkedId}>
-                <td>{item.carNumber}</td>
+                <td className="fw-semibold">{item.carNumber}</td>
+                <td className="text-secondary">{item.buildingName || "—"}</td>
                 <td>{item.slotNumber}</td>
                 <td>{new Date(item.entryTime).toLocaleString()}</td>
-                <td>
-                  <button
-                    className="btn btn-success btn-sm w-100"
+                <td className="text-center">
+                  <Button
+                    size="sm"
+                    variant="success"
+                    className="px-3"
                     onClick={() => handleUnparkClick(item)}
                   >
                     Unpark
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center">
+                <td colSpan={5} className="text-center">
                   No matches.
                 </td>
               </tr>
@@ -240,34 +247,72 @@ export default function UnparkTable({ activeList, onUnpark }) {
       </div>
 
       {/* Payment Modal */}
-      <Modal show={showPayModal} onHide={() => setShowPayModal(false)} centered>
-        <Modal.Header closeButton>
+      <Modal
+        show={showPayModal}
+        onHide={() => setShowPayModal(false)}
+        centered
+        data-bs-theme="dark"
+        contentClassName="bg-dark text-light border-0 rounded-4"
+      >
+        <Modal.Header
+          closeButton
+          className="border-0"
+          style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)" }}
+        >
           <Modal.Title>Parking Checkout</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selected && (
-            <div className="mb-2">
-              <div><b>Car Number:</b> {selected.carNumber}</div>
-              <div><b>Slot:</b> {selected.slotNumber}</div>
-              <div><b>Entry Time:</b> {new Date(selected.entryTime).toLocaleString()}</div>
-              <div>
-                <b>Fee:</b>{" "}
-                {feeLoading
-                  ? "Loading..."
-                  : selected.fee !== undefined && selected.fee !== null
-                    ? `${selected.fee} MMK`
-                    : "Calculated at exit"}
+            <div className="mb-3 small">
+              <div className="d-flex justify-content-between">
+                <span className="text-secondary">Car Number</span>
+                <span className="text-light fw-semibold">{selected.carNumber}</span>
+              </div>
+              <div className="d-flex justify-content-between">
+                <span className="text-secondary">Building</span>
+                <span className="text-light">{selected.buildingName || "—"}</span>
+              </div>
+              <div className="d-flex justify-content-between">
+                <span className="text-secondary">Slot</span>
+                <span className="text-light">{selected.slotNumber}</span>
+              </div>
+              <div className="d-flex justify-content-between">
+                <span className="text-secondary">Entry Time</span>
+                <span className="text-light">{new Date(selected.entryTime).toLocaleString()}</span>
+              </div>
+              <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-secondary">
+                <span className="text-secondary">Fee</span>
+                <span className="text-light">
+                  {feeLoading ? (
+                    <span className="d-inline-flex align-items-center gap-2">
+                      <Spinner size="sm" animation="border" /> Calculating…
+                    </span>
+                  ) : selected.fee != null ? (
+                    <span className="fw-bold">{Number(selected.fee).toLocaleString()} MMK</span>
+                  ) : (
+                    "Calculated at exit"
+                  )}
+                </span>
               </div>
             </div>
           )}
+
           <Button
             variant="primary"
             onClick={handlePayNow}
             disabled={isPaying || feeLoading}
             className="w-100"
           >
-            {isPaying ? "Processing..." : "Pay Now"}
+            {isPaying ? (
+              <>
+                <Spinner size="sm" animation="border" className="me-2" />
+                Processing…
+              </>
+            ) : (
+              "Pay Now"
+            )}
           </Button>
+
           {payError && <div className="text-danger text-center mt-2">{payError}</div>}
         </Modal.Body>
       </Modal>
@@ -284,17 +329,19 @@ export default function UnparkTable({ activeList, onUnpark }) {
           className="border-0"
           style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)" }}
         >
-          <Modal.Title className="text-info fw-bold">
-            Barrier Unlock Code
-          </Modal.Title>
+          <Modal.Title className="text-info fw-bold">Barrier Unlock Code</Modal.Title>
         </Modal.Header>
 
         <Modal.Body className="text-center">
-          <h1 className="display-4 fw-bold text-primary" style={{ letterSpacing: "8px" }}>
+          <div className="display-5 fw-bold text-primary" style={{ letterSpacing: "8px" }}>
             {keyModal.code}
-          </h1>
-          <div className="my-3 text-warning fw-bold">
-            This key is valid for 5 minutes only!
+          </div>
+          <div className="my-2 text-secondary small">
+            Expires: {keyModal.expiresAt ? fmtDate(keyModal.expiresAt) : "-"}
+          </div>
+
+          <div className="my-3 text-warning fw-semibold">
+            This key is valid for 5 minutes only.
           </div>
           <p className="mb-3 text-secondary">
             Enter this code at the barrier to exit the parking.

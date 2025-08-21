@@ -2,7 +2,9 @@
 :root{
   --brand-heading: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
   --brand-body: 'Open Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
-
+    --sidebar-width: 280px;  /* keep in sync with Sidebar */
+  --content-gap: 18px;     /* the gap between sidebar and content */
+  --page-pad: 24px;  
   /* Make Bootstrap use Open Sans by default */
   --bs-font-sans-serif: var(--brand-body);
 }
@@ -17,6 +19,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.page-main {
+  /* push content past the sidebar only */
+  margin-left: var(--sidebar-width);
+
+  /* add the visual gap inside the element so it gets the bg */
+  padding: var(--page-pad);
+  padding-left: calc(var(--page-pad) + var(--content-gap));
+
+  min-height: 100vh;
+  width: 100%;
+
+  background: linear-gradient(120deg, #25263b 70%, #283148 100%);
+}
+
+
+.container-fluid.page-container {
+  padding-left: 0;
+  padding-right: 0;
+}
 /* Headings & key titles use Poppins */
 h1, h2, h3, h4, h5, h6,
 .display-1, .display-2, .display-3, .display-4,
@@ -33,3 +54,32 @@ h1, h2, h3, h4, h5, h6,
 
 /* ---- Remove Vite demo styles that were constraining layout ---- */
 /* (Deleted #root max-width/padding/text-align and logo demo rules) */
+
+/* -------- Loaders -------- */
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(7, 9, 15, 0.35);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-loader .loader-card {
+  background: rgba(38, 39, 58, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 24px 32px;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.section-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;        /* makes tables/cards not jump */
+  padding: 24px;
+}

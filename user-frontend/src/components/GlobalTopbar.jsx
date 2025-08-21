@@ -1,43 +1,66 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Dropdown } from "react-bootstrap";
+import Dropdown from "react-bootstrap/Dropdown";
+
+const AvatarToggle = React.forwardRef(({ children, onClick }, ref) => (
+  <button
+    ref={ref}
+    className="btn p-0 border-0 bg-transparent position-relative"
+    onClick={(e) => {
+      e.preventDefault();
+      onClick(e);
+    }}
+    aria-label="Profile menu"
+    type="button"
+  >
+    {children}
+  </button>
+));
+AvatarToggle.displayName = "AvatarToggle";
 
 export default function GlobalTopbar() {
-  const location = useLocation();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
 
-  const token = useMemo(() => localStorage.getItem("token"), []);
-  const user = useMemo(() => JSON.parse(localStorage.getItem("user") || "{}"), []);
+  // Always read fresh so changes are reflected without reloads
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
   const userId = user?.id;
 
-  const hideOn = ["/login", "/register", "/profile"];
-  const shouldHide = !token || hideOn.some((p) => location.pathname.startsWith(p));
+  const hideOn = ["/login", "/register"];
+  const shouldHide = !token || hideOn.some((p) => pathname.startsWith(p));
 
   const [avatarError, setAvatarError] = useState(false);
   const [cacheKey, setCacheKey] = useState(Date.now());
   const [avatarSrc, setAvatarSrc] = useState("");
 
   useEffect(() => {
-    if (!userId) return;
-    setAvatarSrc(`/api/profile/photo?userId=${userId}&t=${cacheKey}`);
+    if (userId) setAvatarSrc(`/api/profile/photo?userId=${userId}&t=${cacheKey}`);
   }, [userId, cacheKey]);
 
+  useEffect(() => setAvatarError(false), [avatarSrc]);
+
+  // listen for profile-updated events to bust avatar cache
   useEffect(() => {
     const bump = () => setCacheKey(Date.now());
     window.addEventListener("profile-updated", bump);
     return () => window.removeEventListener("profile-updated", bump);
   }, []);
 
+  if (shouldHide) return null;
+
   const initials = ((user.fullName || user.username || "U").trim())
-    .split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     window.location.href = "/login";
   };
-
-  if (shouldHide) return null;
 
   return (
     <div
@@ -50,12 +73,7 @@ export default function GlobalTopbar() {
       }}
     >
       <Dropdown align="end">
-        <Dropdown.Toggle
-          variant="link"
-          className="p-0 border-0 bg-transparent text-decoration-none"
-          id="topbar-user-menu"
-          title={user.fullName || user.username || "Profile"}
-        >
+        <Dropdown.Toggle as={AvatarToggle} id="global-topbar-dropdown">
           {!avatarError ? (
             <img
               src={avatarSrc}
@@ -76,13 +94,11 @@ export default function GlobalTopbar() {
           )}
         </Dropdown.Toggle>
 
-        <Dropdown.Menu>
+        <Dropdown.Menu className="shadow">
           <div className="dropdown-header small">
             Signed in as <b>{user.fullName || user.username}</b>
           </div>
-          <Dropdown.Item onClick={() => navigate("/profile")}>
-            Profile
-          </Dropdown.Item>
+          <Dropdown.Item onClick={() => navigate("/profile")}>Profile</Dropdown.Item>
           <Dropdown.Divider />
           <Dropdown.Item className="text-danger" onClick={logout}>
             Logout

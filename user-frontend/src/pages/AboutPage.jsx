@@ -1,32 +1,22 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { SIDEBAR_WIDTH } from "../constants/layout";
 
 export default function AboutPage() {
   return (
     <div style={{ display: "flex" }}>
       <Sidebar />
 
-      <div
-        style={{
-          marginLeft: `${SIDEBAR_WIDTH}px`,
-          width: "100%",
-          minHeight: "100vh",
-          background: "linear-gradient(120deg, #25263b 70%, #283148 100%)",
-          paddingTop: "20px",
-        }}
-      >
-        <div className="container py-5">
+      {/* Use the global page layout class to avoid the white gap */}
+      <main className="page-main">
+        <div className="container-fluid page-container py-5">
           {/* Header */}
           <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
             <div className="text-center text-md-start">
               <h1 className="fw-bold text-light m-0" style={{ textShadow: "0 2px 10px #0005" }}>
                 About SPARK
               </h1>
-              <p className="lead mb-0 text-info">
-                A modern, user-friendly parking experience.
-              </p>
+              <p className="lead mb-0 text-info">A modern, user-friendly parking experience.</p>
             </div>
             <span className="badge bg-secondary fs-6 px-3 py-2">Version 1.0.0</span>
           </div>
@@ -46,7 +36,7 @@ export default function AboutPage() {
           </div>
 
           <div className="row g-4">
-            {/* Features */}
+            {/* About Us */}
             <div className="col-12 col-lg-6">
               <div className="card shadow-lg border-0 rounded-4 h-100">
                 <div
@@ -55,7 +45,12 @@ export default function AboutPage() {
                 >
                   <h4 className="text-light fw-bold mb-3">About Us</h4>
                   <ul className="text-secondary m-0 ps-3" style={{ lineHeight: 1.8 }}>
-                    <li>Lorem ipsum dolor sit amet consectetur adipisicing elit. Mollitia maxime blanditiis animi cupiditate velit, voluptates enim eaque magni neque? Nihil dolores explicabo non nesciunt molestiae dolorem nostrum voluptatum illum consectetur?</li>
+                    <li>
+                      Lorem ipsum dolor sit amet consectetur adipisicing elit. Mollitia maxime
+                      blanditiis animi cupiditate velit, voluptates enim eaque magni neque? Nihil
+                      dolores explicabo non nesciunt molestiae dolorem nostrum voluptatum illum
+                      consectetur?
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -70,7 +65,12 @@ export default function AboutPage() {
                 >
                   <h4 className="text-light fw-bold mb-3">How It Works</h4>
                   <ul className="text-secondary m-0 ps-3" style={{ lineHeight: 1.8 }}>
-                    <li>Lorem ipsum dolor sit amet consectetur adipisicing elit. Recusandae, excepturi corrupti quae fugiat fuga quam voluptatibus rem, possimus est similique perferendis distinctio iusto hic aliquam expedita porro tempore sapiente quidem!</li>
+                    <li>
+                      Lorem ipsum dolor sit amet consectetur adipisicing elit. Recusandae, excepturi
+                      corrupti quae fugiat fuga quam voluptatibus rem, possimus est similique
+                      perferendis distinctio iusto hic aliquam expedita porro tempore sapiente
+                      quidem!
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -124,7 +124,7 @@ export default function AboutPage() {
             © {new Date().getFullYear()} SPARK. All rights reserved.
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

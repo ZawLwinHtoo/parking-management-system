@@ -27,15 +27,15 @@ export default function Sidebar({ onLogout }) {
   return (
     <aside
       className="bg-dark text-light d-flex flex-column"
-      style={{
-        height: '100vh',
-        width: '280px',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        boxShadow: '2px 0 6px rgba(0,0,0,0.45)',
-      }}
-      data-bs-theme="dark"
+  style={{
+    height: '100vh',
+    width: 'var(--sidebar-width)',   // ← use CSS var
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    boxShadow: '2px 0 6px rgba(0,0,0,0.45)',
+  }}
+  data-bs-theme="dark"
     >
       {/* Brand */}
       <div className="px-4 pt-4 pb-3 border-bottom border-secondary">
@@ -60,12 +60,7 @@ export default function Sidebar({ onLogout }) {
           </small>
         </div>
 
-        {user?.username && (
-          <div className="mt-3 small text-secondary">
-            Signed in as{' '}
-            <span className="text-light">{user.fullName || user.username}</span>
-          </div>
-        )}
+       
       </div>
 
       {/* Nav */}
