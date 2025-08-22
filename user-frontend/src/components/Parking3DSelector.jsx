@@ -5,10 +5,10 @@ import { OrbitControls, Html } from "@react-three/drei";
 function SlotBox({ x, y, z, slot, selected, onClick, onHover, hovered }) {
   let color =
     slot.isOccupied || slot.occupied === true || slot.isAvailable === false
-      ? "#fa5252"
+      ? "#fa5252" // Red if occupied or unavailable
       : selected
-        ? "#339af0"
-        : "#51cf66";
+        ? "#339af0" // Blue for selected
+        : "#51cf66"; // Green for available
 
   return (
     <mesh

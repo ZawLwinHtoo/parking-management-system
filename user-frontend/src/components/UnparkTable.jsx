@@ -10,18 +10,22 @@ export default function UnparkTable({ activeList, onUnpark }) {
   const [keyModal, setKeyModal] = useState({ show: false, code: null, expiresAt: null });
   const [feeLoading, setFeeLoading] = useState(false);
   const [q, setQ] = useState("");
-  const [receipt, setReceipt] = useState(null); // for export
+  const [receipt, setReceipt] = useState(null);
 
+  const list = activeList || [];
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
-    if (!t) return activeList || [];
-    return (activeList || []).filter((x) => {
+    if (!t) return list;
+    return list.filter((x) => {
       const car = String(x.carNumber || "").toLowerCase();
       const slot = String(x.slotNumber || "").toLowerCase();
       const bldg = String(x.buildingName || "").toLowerCase();
       return car.includes(t) || slot.includes(t) || bldg.includes(t);
     });
-  }, [q, activeList]);
+  }, [q, list]);
+
+  const fmtDate = (ts) => (ts ? new Date(ts).toLocaleString() : "-");
+  const fmtMoney = (n) => (n == null ? "-" : `${Number(n).toLocaleString()} MMK`);
 
   const handleUnparkClick = async (car) => {
     setPayError("");
@@ -29,13 +33,13 @@ export default function UnparkTable({ activeList, onUnpark }) {
     try {
       const res = await getActiveById(car.parkedId);
       setSelected(res.data);
-      setShowPayModal(true);
     } catch {
       setSelected({ ...car, fee: null });
       setPayError("Could not load latest info");
+    } finally {
       setShowPayModal(true);
+      setFeeLoading(false);
     }
-    setFeeLoading(false);
   };
 
   const handlePayNow = async () => {
@@ -44,8 +48,12 @@ export default function UnparkTable({ activeList, onUnpark }) {
     setPayError("");
     try {
       const res = await paymentCheckout(selected.parkedId);
-      const exitIso = new Date().toISOString();
+      const code = res?.data?.code ?? res?.data?.key ?? null;
+      const expiresAt = res?.data?.expiresAt ?? res?.data?.expires_at ?? null;
+      const fee = res?.data?.fee ?? selected.fee;
 
+      // keep data for receipt export
+      const exitIso = new Date().toISOString();
       setReceipt({
         parkedId: selected.parkedId,
         carNumber: selected.carNumber,
@@ -53,86 +61,74 @@ export default function UnparkTable({ activeList, onUnpark }) {
         buildingName: selected.buildingName,
         entryTime: selected.entryTime,
         exitTime: exitIso,
-        fee: res?.data?.fee ?? selected.fee,
+        fee,
       });
 
-      setKeyModal({ show: true, code: res.data.code, expiresAt: res.data.expiresAt });
+      // show unlock code
+      setKeyModal({ show: true, code, expiresAt });
+
+      // close pay modal; DO NOT refresh list yet (prevents unmount)
       setShowPayModal(false);
-      onUnpark();
     } catch (err) {
       setPayError(err?.response?.data?.message || "Payment failed");
+    } finally {
+      setIsPaying(false);
     }
-    setIsPaying(false);
   };
 
+  // Refresh only after the user closes the key modal so the component stays mounted while showing it
   const handleCloseKeyModal = () => {
     setKeyModal({ show: false, code: null, expiresAt: null });
     setSelected(null);
-    onUnpark();
+    onUnpark && onUnpark();
   };
 
-  // ---------- Receipt helpers ----------
-  const fmtDate = (ts) => (ts ? new Date(ts).toLocaleString() : "-");
-  const fmtMoney = (n) => (n == null ? "-" : `${Number(n).toLocaleString()} MMK`);
-
+  // --- receipt export (unchanged) ---
   const buildReceiptCanvas = async (rec, width = 900, height = 600) => {
     const pad = 36, line = 34;
     const canvas = document.createElement("canvas");
     canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext("2d");
 
-    // Background
     const grd = ctx.createLinearGradient(0, 0, width, height);
     grd.addColorStop(0, "#1f2233"); grd.addColorStop(1, "#2b365b");
     ctx.fillStyle = grd; ctx.fillRect(0, 0, width, height);
 
-    // Card
     ctx.fillStyle = "rgba(255,255,255,0.06)";
     ctx.fillRect(pad, pad, width - pad * 2, height - pad * 2);
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
     ctx.lineWidth = 2;
     ctx.strokeRect(pad + 1, pad + 1, width - pad * 2 - 2, height - pad * 2 - 2);
 
-    // Title
     ctx.fillStyle = "#ffffff";
     ctx.font = "700 28px system-ui, -apple-system, Segoe UI, Roboto";
     ctx.fillText("Parking Receipt", pad * 2, pad * 2 + 10);
 
-    // Divider
     ctx.strokeStyle = "rgba(255,255,255,0.15)";
     ctx.beginPath();
     ctx.moveTo(pad * 2, pad * 2 + 24);
     ctx.lineTo(width - pad * 2, pad * 2 + 24);
     ctx.stroke();
 
-    // Body
     ctx.font = "500 18px system-ui, -apple-system, Segoe UI, Roboto";
     let y = pad * 2 + 60;
-    const drawRow = (label, value) => {
-      ctx.fillStyle = "rgba(255,255,255,0.7)";
-      ctx.fillText(label, pad * 2, y);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(String(value || "-"), pad * 2 + 180, y);
-      y += 34;
+    const row = (label, value) => {
+      ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.fillText(label, pad * 2, y);
+      ctx.fillStyle = "#ffffff"; ctx.fillText(String(value || "-"), pad * 2 + 180, y);
+      y += line;
     };
 
-    const d = (x) => (x ? new Date(x).toLocaleString() : "-");
-    drawRow("Car Number:", rec.carNumber);
-    drawRow("Building:", rec.buildingName);
-    drawRow("Slot:", rec.slotNumber);
-    drawRow("Entry Time:", d(rec.entryTime));
-    drawRow("Exit Time:", d(rec.exitTime));
-    drawRow("Fee Paid:", fmtMoney(rec.fee));
+    row("Car Number:", rec.carNumber);
+    row("Building:", rec.buildingName);
+    row("Slot:", rec.slotNumber);
+    row("Entry Time:", fmtDate(rec.entryTime));
+    row("Exit Time:", fmtDate(rec.exitTime));
+    row("Fee Paid:", fmtMoney(rec.fee));
 
-    // Footer
     y = height - pad * 2;
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.font = "14px system-ui, -apple-system, Segoe UI, Roboto";
-    ctx.fillText(
-      `Receipt #${rec.parkedId}  •  Generated ${d(new Date().toISOString())}`,
-      pad * 2,
-      y
-    );
+    ctx.fillText(`Receipt #${rec.parkedId} • Generated ${fmtDate(new Date().toISOString())}`, pad * 2, y);
 
     return canvas;
   };
@@ -155,23 +151,17 @@ export default function UnparkTable({ activeList, onUnpark }) {
       const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [canvas.width, canvas.height] });
       pdf.addImage(img, "PNG", 0, 0, canvas.width, canvas.height);
       pdf.save(`parking-receipt-${receipt.parkedId}.pdf`);
-    } catch (e) {
-      console.error(e);
+    } catch {
       alert("PDF export needs jsPDF. Run: npm i jspdf");
     }
   };
-  // -------------------------------------
 
-  if (!activeList || activeList.length === 0) {
-    return <div className="alert alert-info text-center mb-0">No cars currently parked.</div>;
-  }
-
-  const total = activeList.length;
+  const total = list.length;
   const shown = filtered.length;
 
   return (
     <>
-      {/* Toolbar */}
+      {/* Toolbar stays mounted */}
       <div className="d-flex align-items-center justify-content-between mb-2">
         <Form className="d-flex gap-2 w-100" onSubmit={(e) => e.preventDefault()}>
           <Form.Control
@@ -188,65 +178,58 @@ export default function UnparkTable({ activeList, onUnpark }) {
           )}
         </Form>
         <div className="ms-3">
-          <Badge bg="secondary">
-            {shown}/{total}
-          </Badge>
+          <Badge bg="secondary">{shown}/{total}</Badge>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Content area: show either table or empty state, but DO NOT early return */}
       <div className="table-responsive" style={{ maxHeight: 420 }}>
-        <table className="table table-dark table-striped table-hover table-bordered table-sm align-middle mb-0">
-          <thead
-            style={{
-              position: "sticky",
-              top: 0,
-              zIndex: 1,
-              background: "rgba(33,37,41,0.98)",
-              backdropFilter: "blur(4px)",
-            }}
-          >
-            <tr>
-              <th style={{ whiteSpace: "nowrap" }}>Car Number</th>
-              <th>Building</th>
-              <th>Slot</th>
-              <th style={{ minWidth: 160 }}>Entry Time</th>
-              <th style={{ width: 120 }} className="text-center">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((item) => (
-              <tr key={item.parkedId}>
-                <td className="fw-semibold">{item.carNumber}</td>
-                <td className="text-secondary">{item.buildingName || "—"}</td>
-                <td>{item.slotNumber}</td>
-                <td>{new Date(item.entryTime).toLocaleString()}</td>
-                <td className="text-center">
-                  <Button
-                    size="sm"
-                    variant="success"
-                    className="px-3"
-                    onClick={() => handleUnparkClick(item)}
-                  >
-                    Unpark
-                  </Button>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
+        {total === 0 ? (
+          <div className="alert alert-info text-center mb-0">No cars currently parked.</div>
+        ) : (
+          <table className="table table-dark table-striped table-hover table-bordered table-sm align-middle mb-0">
+            <thead
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 1,
+                background: "rgba(33,37,41,0.98)",
+                backdropFilter: "blur(4px)",
+              }}
+            >
               <tr>
-                <td colSpan={5} className="text-center">
-                  No matches.
-                </td>
+                <th style={{ whiteSpace: "nowrap" }}>Car Number</th>
+                <th>Building</th>
+                <th>Slot</th>
+                <th style={{ minWidth: 160 }}>Entry Time</th>
+                <th style={{ width: 120 }} className="text-center">Action</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((item) => (
+                <tr key={item.parkedId}>
+                  <td className="fw-semibold">{item.carNumber}</td>
+                  <td className="text-secondary">{item.buildingName || "—"}</td>
+                  <td>{item.slotNumber}</td>
+                  <td>{fmtDate(item.entryTime)}</td>
+                  <td className="text-center">
+                    <Button size="sm" variant="success" className="px-3" onClick={() => handleUnparkClick(item)}>
+                      Unpark
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center">No matches.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {/* Payment Modal */}
+      {/* Payment Modal (always mounted) */}
       <Modal
         show={showPayModal}
         onHide={() => setShowPayModal(false)}
@@ -278,7 +261,7 @@ export default function UnparkTable({ activeList, onUnpark }) {
               </div>
               <div className="d-flex justify-content-between">
                 <span className="text-secondary">Entry Time</span>
-                <span className="text-light">{new Date(selected.entryTime).toLocaleString()}</span>
+                <span className="text-light">{fmtDate(selected.entryTime)}</span>
               </div>
               <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-secondary">
                 <span className="text-secondary">Fee</span>
@@ -288,7 +271,7 @@ export default function UnparkTable({ activeList, onUnpark }) {
                       <Spinner size="sm" animation="border" /> Calculating…
                     </span>
                   ) : selected.fee != null ? (
-                    <span className="fw-bold">{Number(selected.fee).toLocaleString()} MMK</span>
+                    <span className="fw-bold">{fmtMoney(selected.fee)}</span>
                   ) : (
                     "Calculated at exit"
                   )}
@@ -317,7 +300,7 @@ export default function UnparkTable({ activeList, onUnpark }) {
         </Modal.Body>
       </Modal>
 
-      {/* One-Time Key + Receipt actions */}
+      {/* Key Modal (always mounted) */}
       <Modal
         show={keyModal.show}
         onHide={handleCloseKeyModal}
@@ -334,7 +317,7 @@ export default function UnparkTable({ activeList, onUnpark }) {
 
         <Modal.Body className="text-center">
           <div className="display-5 fw-bold text-primary" style={{ letterSpacing: "8px" }}>
-            {keyModal.code}
+            {keyModal.code ?? "—"}
           </div>
           <div className="my-2 text-secondary small">
             Expires: {keyModal.expiresAt ? fmtDate(keyModal.expiresAt) : "-"}
@@ -351,12 +334,8 @@ export default function UnparkTable({ activeList, onUnpark }) {
             <div className="mt-4 text-start small">
               <div className="mb-2 fw-bold text-light">Download Receipt</div>
               <div className="d-flex gap-2">
-                <Button variant="outline-light" size="sm" onClick={downloadPDF}>
-                  PDF
-                </Button>
-                <Button variant="outline-light" size="sm" onClick={downloadPNG}>
-                  PNG
-                </Button>
+                <Button variant="outline-light" size="sm" onClick={downloadPDF}>PDF</Button>
+                <Button variant="outline-light" size="sm" onClick={downloadPNG}>PNG</Button>
               </div>
               <div className="text-secondary mt-2">
                 Includes Car, Entry, Exit, Building, Slot, and Fee.

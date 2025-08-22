@@ -27,8 +27,8 @@ public class ParkingServiceImpl implements ParkingService {
     @Autowired private PaymentRepository paymentRepo;
     @Autowired private BuildingRepository buildingRepo;
     @Autowired private SlotKeyRepository slotKeyRepo;
-    private static final Pattern PLATE_RE = Pattern.compile("^[1-9]\\d?[A-Z]-\\d{4}$");
-    // PARK: generate one-time key and attach to ActiveDto
+    private static final Pattern PLATE_RE = Pattern.compile("^[A-Z]{1}[A-Z]-\\d{4}$|^[1-9]{1}[A-Z]{1}-\\d{4}$");
+
     @Override
     @Transactional
     public ActiveDto park(ParkRequest req) {
@@ -36,10 +36,10 @@ public class ParkingServiceImpl implements ParkingService {
         if (!PLATE_RE.matcher(raw).matches()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Invalid car number format. Use like 7C-7351"
+                    "Invalid car number format. Use formats like 1A-1234 or AA-1234"
             );
         }
-        // Defensive check: Prevent double parking
+            // Defensive check: Prevent double parking
         if (parkedCarRepo.findByCarNumberAndExitTimeIsNull(req.getCarNumber()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Car is already parked!");
         }

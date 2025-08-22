@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class ParkedCar {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
-
+    
 
 
     @ManyToOne

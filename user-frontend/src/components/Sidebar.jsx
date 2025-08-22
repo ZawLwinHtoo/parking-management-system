@@ -5,11 +5,11 @@ export default function Sidebar({ onLogout }) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const linkBase =
-    'nav-link d-flex align-items-center rounded-3 px-3 py-2 text-decoration-none';
+    'nav-link d-flex align-items-center rounded-3 px-3 py-3 text-decoration-none';  // Increased padding
 
   const linkStyle = {
-    fontSize: '0.95rem',
-    lineHeight: 1.1,
+    fontSize: '1.1rem',  // Increased font size
+    lineHeight: 1.4,
     color: '#d8dbe3',
     transition: 'background .15s ease, color .15s ease',
   };
@@ -27,15 +27,15 @@ export default function Sidebar({ onLogout }) {
   return (
     <aside
       className="bg-dark text-light d-flex flex-column"
-  style={{
-    height: '100vh',
-    width: 'var(--sidebar-width)',   // ← use CSS var
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    boxShadow: '2px 0 6px rgba(0,0,0,0.45)',
-  }}
-  data-bs-theme="dark"
+      style={{
+        height: '100vh',
+        width: 'var(--sidebar-width)',   // ← use CSS var
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        boxShadow: '2px 0 6px rgba(0,0,0,0.45)',
+      }}
+      data-bs-theme="dark"
     >
       {/* Brand */}
       <div className="px-4 pt-4 pb-3 border-bottom border-secondary">
@@ -56,11 +56,9 @@ export default function Sidebar({ onLogout }) {
             className="text-secondary text-uppercase"
             style={{ letterSpacing: '0.12rem', fontSize: '0.7rem' }}
           >
-            Smart Parking
+            Smart Parking & Access Resources Kit
           </small>
         </div>
-
-       
       </div>
 
       {/* Nav */}
@@ -97,9 +95,9 @@ export default function Sidebar({ onLogout }) {
             </NavLink>
           </li>
           <li className="nav-item">
-          <NavLink to="/about" className={linkClasses} style={({ isActive }) => getItemStyle(isActive)}>
+            <NavLink to="/about" className={linkClasses} style={({ isActive }) => getItemStyle(isActive)}>
               <span>About</span>
-          </NavLink>
+            </NavLink>
           </li>
           <li className="nav-item">
             <NavLink
@@ -127,8 +125,8 @@ export default function Sidebar({ onLogout }) {
       <div className="px-3 pb-4 pt-2 border-top border-secondary">
         <button
           onClick={onLogout}
-          className="btn btn-outline-light w-100 fw-semibold py-2 rounded-3"
-          style={{ fontSize: '.9rem' }}
+          className="btn btn-outline-light w-100 fw-semibold py-3 rounded-3"  // Increased button padding
+          style={{ fontSize: '1rem' }}  // Increased font size
         >
           Logout
         </button>

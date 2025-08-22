@@ -1,4 +1,3 @@
-// ParkForm.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { getBuildings, getSlotsByBuilding, parkCar } from "../api/parking";
 import { Button, Form, Modal } from "react-bootstrap";
@@ -22,8 +21,8 @@ export default function ParkForm({ userId, onSuccess }) {
 
   const navigate = useNavigate();
 
-  // Accepts: 7C-7351 or 12C-1234 (1–2 digits, A–Z, hyphen, 4 digits)
-  const PLATE_RE = useMemo(() => /^[1-9]\d?[A-Z]-\d{4}$/, []);
+  // Updated regex to support both "AA-1234" and "1A-1234"
+  const PLATE_RE = useMemo(() => /^[A-Z]{1}[A-Z]-\d{4}$|^[1-9]{1}[A-Z]{1}-\d{4}$/, []);
 
   useEffect(() => {
     getBuildings().then((res) => setBuildings(res.data));
@@ -42,7 +41,7 @@ export default function ParkForm({ userId, onSuccess }) {
     setCarNumber(normalized);
 
     if (!normalized) setPlateError("");
-    else if (!PLATE_RE.test(normalized)) setPlateError("Enter correct car number (e.g., 7C-7351)");
+    else if (!PLATE_RE.test(normalized)) setPlateError("Enter correct car number (e.g., AA-1234 or 1A-1234)");
     else setPlateError("");
   };
 
@@ -50,8 +49,8 @@ export default function ParkForm({ userId, onSuccess }) {
     e.preventDefault();
     setError("");
 
-    if (!PLATE_RE.test((carNumber || "").toUpperCase())) {
-      setPlateError("Enter correct car number (e.g., 7C-7351)");
+    if (!PLATE_RE.test(carNumber)) {
+      setPlateError("Enter correct car number (e.g., AA-1234 or 1A-1234)");
       return;
     }
 
@@ -72,15 +71,16 @@ export default function ParkForm({ userId, onSuccess }) {
     }
   };
 
-  // 🔥 Ensure floor exists
+  // Ensure floor exists
   const slotsWithFloor = slots.map((slot) => ({ ...slot, floor: slot.floor ?? 1 }));
 
-  // 🔎 Convenience lookups for the info chip
+  // Convenience lookups for the info chip
   const selectedBuildingObj = useMemo(
     () => buildings.find((b) => b.id === Number(selectedBuilding)),
     [buildings, selectedBuilding]
   );
 
+  // Use selectedSlotId to get the selected slot
   const selectedSlot = useMemo(
     () => slots.find((s) => String(s.id) === String(selectedSlotId)),
     [slots, selectedSlotId]
@@ -180,7 +180,7 @@ export default function ParkForm({ userId, onSuccess }) {
           <Form.Control
             value={carNumber}
             onChange={onCarInput}
-            placeholder="e.g. 7C-7351"
+            placeholder="e.g. AA-1234 or 1A-1234"
             className={`bg-dark text-light ${plateError ? "is-invalid" : ""}`}
           />
           {plateError && <div className="invalid-feedback">{plateError}</div>}

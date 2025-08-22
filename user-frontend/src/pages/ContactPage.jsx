@@ -29,7 +29,6 @@ export default function ContactPage() {
         status: f.status ?? "open",
         createdAt: f.createdAt ?? f.created_at ?? f.submitted_at,
         adminReply: f.adminReply ?? f.admin_reply ?? null,
-        userFollowup: f.userReply ?? f.user_followup ?? f.reply ?? null,
       }))
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }, [list]);
@@ -118,7 +117,10 @@ export default function ContactPage() {
                   {rows.length === 0 ? (
                     <div className="alert alert-info mb-0">No messages yet. Send your first one on the left.</div>
                   ) : (
-                    <div className="list-group list-group-flush">
+                    <div 
+                      className="list-group list-group-flush" 
+                      style={{ maxHeight: "300px", overflowY: "auto", scrollbarWidth: "thin" }}
+                    >
                       {rows.map((f) => (
                         <div key={f.id} className="list-group-item bg-transparent text-light px-0 py-3">
                           <div className="d-flex justify-content-between align-items-start">
@@ -142,15 +144,6 @@ export default function ContactPage() {
                               {f.adminReply ? f.adminReply : "No reply yet."}
                             </div>
                           </div>
-
-                          {f.userFollowup && (
-                            <div className="mt-2 p-2 rounded-3 border border-secondary">
-                              <small className="text-secondary">Your follow-up:</small>
-                              <div className="text-light" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                                {f.userFollowup}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>
