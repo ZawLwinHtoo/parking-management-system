@@ -8,11 +8,11 @@ import com.parking_system.backend.model.Feedback;
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
-    List<Feedback> findByUserIdOrderByCreatedAtDesc(Long userId);
+    // use relation path 'user.id'
+    List<Feedback> findByUser_IdOrderByCreatedAtDesc(Long userId);
 
-    // ✅ add this to match your current service call
-    boolean existsByUserIdAndStatus(Long userId, String status);
+    boolean existsByUser_IdAndStatus(Long userId, String status);
 
-    // ✅ optional: simpler signal “has any admin reply at all”
-    boolean existsByUserIdAndAdminReplyIsNotNull(Long userId);
+    // check the actual 'reply' column (not adminReply)
+    boolean existsByUser_IdAndReplyIsNotNull(Long userId);
 }

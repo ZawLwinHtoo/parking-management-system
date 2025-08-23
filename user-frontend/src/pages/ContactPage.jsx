@@ -1,3 +1,4 @@
+// ContactPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { Form, Button, Card, Badge } from "react-bootstrap";
@@ -5,22 +6,27 @@ import { createFeedback, getFeedback } from "../api/parking";
 
 export default function ContactPage() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const userId = user.id;
+  const userId = Number(user.id); // ensure numeric
 
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [list, setList] = useState([]);
   const [error, setError] = useState("");
 
-  const fetchList = () => {
+  const fetchList = async () => {
     if (!userId) return;
-    getFeedback(userId)
-      .then((res) => setList(res.data || []))
-      .catch((err) => setError(err?.response?.data?.message || "Failed to load feedback"));
+    try {
+      const res = await getFeedback(userId); // should hit GET /api/parking/feedback?userId=...
+      setList(res.data || []);
+      setError("");
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to load feedback (500).");
+    }
   };
 
   useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [userId]);
 
+  // Normalize to `reply` (fall back to legacy admin_reply/adminReply if needed)
   const rows = useMemo(() => {
     return (list || [])
       .map((f) => ({
@@ -28,22 +34,23 @@ export default function ContactPage() {
         message: f.message ?? f.content ?? "",
         status: f.status ?? "open",
         createdAt: f.createdAt ?? f.created_at ?? f.submitted_at,
-        adminReply: f.adminReply ?? f.admin_reply ?? null,
+        reply: f.reply ?? f.admin_reply ?? f.adminReply ?? null,
       }))
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }, [list]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || !userId) return;
+
     setSubmitting(true);
     setError("");
     try {
-      await createFeedback({ userId, message: message.trim() });
+      await createFeedback({ userId, message: message.trim() }); // POST /api/parking/feedback
       setMessage("");
       fetchList();
     } catch (err) {
-      setError(err?.response?.data?.message || "Could not submit feedback");
+      setError(err?.response?.data?.message || "Could not submit feedback (500).");
     } finally {
       setSubmitting(false);
     }
@@ -54,6 +61,12 @@ export default function ContactPage() {
     localStorage.removeItem("user");
     window.location.href = "/login";
   };
+
+  const badgeVariant = (s = "open") =>
+    s === "closed" ? "secondary" :
+    s === "resolved" ? "success" :
+    s === "replied" ? "primary" :
+    "warning";
 
   return (
     <div style={{ display: "flex" }}>
@@ -75,7 +88,12 @@ export default function ContactPage() {
             </div>
           </div>
 
+          {error && (
+            <div className="alert alert-danger py-2">{error}</div>
+          )}
+
           <div className="row g-4">
+            {/* Left: form */}
             <div className="col-12 col-lg-5">
               <Card className="shadow-lg border-0 rounded-4" data-bs-theme="dark" style={{ background: "#232633" }}>
                 <Card.Body className="p-4">
@@ -99,13 +117,12 @@ export default function ContactPage() {
                     <Button type="submit" disabled={submitting || !message.trim()} className="w-100 fw-semibold btn-primary">
                       {submitting ? "Sending…" : "Send"}
                     </Button>
-
-                    {error && <div className="text-danger text-center mt-3">{error}</div>}
                   </Form>
                 </Card.Body>
               </Card>
             </div>
 
+            {/* Right: history (scrolls only this list) */}
             <div className="col-12 col-lg-7">
               <Card className="shadow-lg border-0 rounded-4" style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)" }}>
                 <Card.Body className="p-4">
@@ -117,10 +134,7 @@ export default function ContactPage() {
                   {rows.length === 0 ? (
                     <div className="alert alert-info mb-0">No messages yet. Send your first one on the left.</div>
                   ) : (
-                    <div 
-                      className="list-group list-group-flush" 
-                      style={{ maxHeight: "300px", overflowY: "auto", scrollbarWidth: "thin" }}
-                    >
+                    <div className="list-group list-group-flush" style={{ maxHeight: 360, overflowY: "auto", scrollbarWidth: "thin" }}>
                       {rows.map((f) => (
                         <div key={f.id} className="list-group-item bg-transparent text-light px-0 py-3">
                           <div className="d-flex justify-content-between align-items-start">
@@ -130,18 +144,19 @@ export default function ContactPage() {
                                 Sent: {f.createdAt ? new Date(f.createdAt).toLocaleString() : "-"}
                               </small>
                             </div>
-                            <Badge bg={f.status === "open" ? "warning" : "success"} className="text-dark">
+                            <Badge bg={badgeVariant(f.status)} className="text-dark">
                               {f.status || "open"}
                             </Badge>
                           </div>
 
+                          {/* Admin reply (now using unified `reply`) */}
                           <div className="mt-3 p-3 rounded-3" style={{ background: "#1e2130" }}>
                             <div className="fw-semibold mb-1">Admin reply</div>
                             <div
-                              className={f.adminReply ? "text-light" : "text-secondary"}
+                              className={f.reply ? "text-light" : "text-secondary"}
                               style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                             >
-                              {f.adminReply ? f.adminReply : "No reply yet."}
+                              {f.reply ? f.reply : "No reply yet."}
                             </div>
                           </div>
                         </div>

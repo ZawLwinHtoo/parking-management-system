@@ -1,59 +1,97 @@
 package com.parking_system.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "feedback")
 public class Feedback {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer","handler"})
+    private User user;
 
-  @Column(name = "user_id", nullable = false)
-  private Long userId;
+    @Column(name = "message", nullable = false, columnDefinition = "TEXT")
+    private String message;
 
-  @Column(columnDefinition = "TEXT", nullable = false)
-  private String message;
+    @Column(name = "status", nullable = false)
+    private String status = "open";
 
-  @Column(name = "created_at", nullable = false)
-  private LocalDateTime createdAt;
+    @Column(name = "reply")
+    private String reply;
 
-  @Column(name = "submitted_at", nullable = false)
-  private LocalDateTime submittedAt;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-  @Column(name = "admin_reply", columnDefinition = "TEXT")
-  private String adminReply;
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
 
-  @Column(name = "status", columnDefinition = "ENUM('open','closed') DEFAULT 'open'")
-  private String status = "open";
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) createdAt = now;
+        if (submittedAt == null) submittedAt = now;
+        if (status == null || status.isBlank()) status = "open";
+    }
 
-  @Column(name = "reply", columnDefinition = "TEXT")
-  private String reply;
+    public Long getId() {
+        return id;
+    }
 
-  // getters/setters
-  public Long getId() { return id; }
-  public void setId(Long id) { this.id = id; }
+    public User getUser() {
+        return user;
+    }
 
-  public Long getUserId() { return userId; }
-  public void setUserId(Long userId) { this.userId = userId; }
+    public String getMessage() {
+        return message;
+    }
 
-  public String getMessage() { return message; }
-  public void setMessage(String message) { this.message = message; }
+    public String getStatus() {
+        return status;
+    }
 
-  public LocalDateTime getCreatedAt() { return createdAt; }
-  public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getReply() {
+        return reply;
+    }
 
-  public LocalDateTime getSubmittedAt() { return submittedAt; }
-  public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 
-  public String getAdminReply() { return adminReply; }
-  public void setAdminReply(String adminReply) { this.adminReply = adminReply; }
+    public LocalDateTime getSubmittedAt() {
+        return submittedAt;
+    }
 
-  public String getStatus() { return status; }
-  public void setStatus(String status) { this.status = status; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-  public String getReply() { return reply; }
-  public void setReply(String reply) { this.reply = reply; }
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setReply(String reply) {
+        this.reply = reply;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setSubmittedAt(LocalDateTime submittedAt) {
+        this.submittedAt = submittedAt;
+    }
 }

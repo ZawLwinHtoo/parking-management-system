@@ -1,0 +1,498 @@
+import React, { useEffect, useState, useMemo } from "react";
+import { FaReply, FaCheck, FaTrashAlt } from "react-icons/fa";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, LabelList, PieChart, Pie, Cell, Legend
+} from "recharts";
+
+/* ---------- Toast ---------- */
+function Toast({ message, type = "info", onClose }) {
+  if (!message) return null;
+  const bg = type === "success" ? "#1abc9c" : type === "error" ? "#e74c3c" : "#4361ee";
+  return (
+    <div
+      style={{
+        position: "fixed", bottom: 32, right: 32, background: bg, color: "#fff",
+        borderRadius: 12, boxShadow: "0 2px 18px #151d2a80",
+        padding: "16px 34px 16px 24px", fontSize: 18, fontWeight: 600,
+        zIndex: 1200, animation: "fade-in .22s", cursor: "pointer", letterSpacing: ".01em",
+      }}
+      onClick={onClose}
+    >
+      {message}
+      <span style={{ marginLeft: 22, fontWeight: 900, fontSize: 22 }} onClick={onClose}>×</span>
+      <style>{`@keyframes fade-in {from{opacity:0;transform:translateY(36px);}to{opacity:1;transform:translateY(0);}}`}</style>
+    </div>
+  );
+}
+
+/* ---------- Tooltip for issues chart ---------- */
+const IssueTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const { issue, count } = payload[0].payload || {};
+    return (
+      <div style={{
+        background: "#1e2a47", color: "#fff", padding: "10px 12px",
+        borderRadius: 8, boxShadow: "0 6px 18px #0007", fontSize: 14
+      }}>
+        <div style={{ fontWeight: 800, marginBottom: 4 }}>{issue}</div>
+        <div>count: <b>{count}</b></div>
+      </div>
+    );
+  }
+  return null;
+};
+
+function Feedback() {
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState({ message: "", type: "info" });
+  const [deletingId, setDeletingId] = useState(null);
+  const [resolvingId, setResolvingId] = useState(null);
+  const [replyingId, setReplyingId] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");  // new
+  const [categoryFilter, setCategoryFilter] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const feedbacksPerPage = 5;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+
+  // analytics
+  const [rawCommonIssues, setRawCommonIssues] = useState([]);
+
+  // ---- fetch table data ----
+  const fetchFeedbacks = () => {
+    setLoading(true);
+    setError("");
+
+    const queryParams = new URLSearchParams({
+      status: statusFilter,
+      page: currentPage,
+      size: feedbacksPerPage,
+      dateFilter,
+      categoryFilter
+    }).toString();
+
+    fetch(`/api/feedback?${queryParams}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.content) {
+          setFeedbacks(data.content);
+          setTotalPages(data.totalPages ?? 1);
+          setTotalElements(data.totalElements ?? data.content.length ?? 0);
+        } else if (Array.isArray(data)) {
+          setFeedbacks(data);
+          setTotalPages(1);
+          setTotalElements(data.length);
+        } else {
+          setFeedbacks([]);
+          setTotalPages(1);
+          setTotalElements(0);
+        }
+      })
+      .catch(() => setError("Failed to fetch feedbacks."))
+      .finally(() => setLoading(false));
+  };
+
+  // ---- fetch analytics (entire DB) ----
+  const fetchCommonIssues = () => {
+    fetch("/api/feedback/analytics")
+      .then((res) => res.json())
+      .then((data) => setRawCommonIssues(Array.isArray(data) ? data : []))
+      .catch(() => {
+        // do not crash UI if analytics fails
+        setRawCommonIssues([]);
+      });
+  };
+
+  useEffect(() => {
+    fetchFeedbacks();
+    fetchCommonIssues();
+  }, [statusFilter, currentPage, dateFilter, categoryFilter]);
+
+  // ---- normalize analytics so there are NEVER blank labels ----
+  const commonIssues = useMemo(() => {
+    const cleaned = (rawCommonIssues || [])
+      .map((row) => ({
+        issue: String(row.issue ?? row.message ?? "").trim(),
+        count: Number(row.count ?? 0),
+      }))
+      .filter((r) => r.count > 0)
+      .map((r) => ({
+        issue: r.issue.length ? r.issue : "(other)",
+        count: r.count,
+      }))
+      // show top 8 max
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    return cleaned;
+  }, [rawCommonIssues]);
+
+  // ---- pie data for this page ----
+  const pieData = useMemo(() => {
+    const counts = feedbacks.reduce((acc, fb) => {
+      const k = (fb.status || "unknown").toLowerCase();
+      acc[k] = (acc[k] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([status, count]) => ({ status, count }));
+  }, [feedbacks]);
+
+  const showToast = (message, type = "info") => {
+    setToast({ message, type });
+    setTimeout(() => setToast({ message: "", type }), 3300);
+  };
+
+  // ---- actions ----
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this feedback?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/feedback/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Feedback deleted!", "success");
+        fetchFeedbacks();
+        fetchCommonIssues(); // keep analytics in sync
+      } else {
+        showToast("Failed to delete feedback.", "error");
+      }
+    } catch {
+      showToast("Failed to delete feedback.", "error");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleResolve = async (id) => {
+    setResolvingId(id);
+    try {
+      const res = await fetch(`/api/feedback/${id}/resolve`, { method: "POST" });
+      if (res.ok) {
+        showToast("Marked as resolved!", "success");
+        fetchFeedbacks();
+        fetchCommonIssues();
+      } else {
+        showToast("Failed to mark as resolved.", "error");
+      }
+    } catch {
+      showToast("Failed to mark as resolved.", "error");
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  const handleReply = async (id) => {
+    if (!replyText.trim()) {
+      showToast("Reply cannot be empty.", "error");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/feedback/${id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(replyText),
+      });
+      if (res.ok) {
+        showToast("Reply sent!", "success");
+        setReplyingId(null);
+        setReplyText("");
+        fetchFeedbacks();
+      } else {
+        showToast("Failed to reply.", "error");
+      }
+    } catch {
+      showToast("Failed to reply.", "error");
+    }
+  };
+
+  const handleFilterChange = (e) => {
+    setStatusFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const statusColor = (status) => {
+    if (status === "resolved") return "#1abc9c";
+    if (status === "open") return "#ffb120";
+    if (status === "replied") return "#0984e3";
+    return "#636e72";
+  };
+
+  const dateOptions = [
+    { value: "all", label: "All Time" },
+    { value: "today", label: "Today" },
+    { value: "this_week", label: "This Week" },
+    { value: "this_month", label: "This Month" },
+  ];
+
+  return (
+    <div style={{ padding: "2.5rem 0", minHeight: "100vh", background: "#101c2f",
+      display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <h2 style={{
+        fontWeight: 900, fontSize: 36, color: "#8cb7ff", marginBottom: 34,
+        letterSpacing: "0.035em", textAlign: "center", textShadow: "0 3px 16px #23346465"
+      }}>
+        Feedback Management
+      </h2>
+
+      {/* Filter Section */}
+      <div style={{ marginBottom: "1rem", display: "flex", gap: 12, alignItems: "center", marginLeft: 20 }}>
+        <select
+          value={statusFilter}
+          onChange={handleFilterChange}
+          style={{
+            padding: "8px 16px", borderRadius: 6, backgroundColor: "#263556", color: "#fff", fontSize: 16,
+            border: "1px solid #334155"
+          }}
+        >
+          <option value="all">All Feedback</option>
+          <option value="open">Open</option>
+          <option value="resolved">Resolved</option>
+          <option value="replied">Replied</option>
+        </select>
+
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          style={{
+            padding: "8px 16px", borderRadius: 6, backgroundColor: "#263556", color: "#fff", fontSize: 16,
+            border: "1px solid #334155"
+          }}
+        >
+          {dateOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          style={{
+            padding: "8px 16px", borderRadius: 6, backgroundColor: "#263556", color: "#fff", fontSize: 16,
+            border: "1px solid #334155"
+          }}
+        >
+          <option value="">All Categories</option>
+          <option value="ac">AC</option>
+          <option value="payment">Payment</option>
+          <option value="security">Security</option>
+        </select>
+
+        <span style={{ color: "#9fb7e6", fontSize: 14 }}>
+          Page {currentPage} / {totalPages} • {totalElements} total
+        </span>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage <= 1}
+            style={{
+              padding: "6px 12px", borderRadius: 6, border: "none", background: "#334c7a", color: "#fff",
+              cursor: currentPage <= 1 ? "not-allowed" : "pointer"
+            }}
+          >
+            Prev
+          </button>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages}
+            style={{
+              padding: "6px 12px", borderRadius: 6, border: "none", background: "#334c7a", color: "#fff",
+              cursor: currentPage >= totalPages ? "not-allowed" : "pointer"
+            }}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div style={{ color: "#8ea8d8", fontSize: 22 }}>Loading...</div>
+      ) : error ? (
+        <div style={{ color: "#ff8888", fontSize: 19 }}>{error}</div>
+      ) : (
+        <div style={{
+          background: "rgba(38, 45, 70, 0.98)", borderRadius: 20,
+          boxShadow: "0 8px 36px #19224525", width: "99%", maxWidth: 1200,
+          overflowX: "auto", marginBottom: 32
+        }}>
+          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 17, minWidth: 1100 }}>
+            <thead>
+              <tr style={{
+                color: "#7fb8ff", fontWeight: 800, textAlign: "left", fontSize: 18.5,
+                letterSpacing: "0.02em", background: "rgba(27,37,57,0.99)", userSelect: "none"
+              }}>
+                <th style={{ padding: "20px 16px 16px 26px", borderRadius: "18px 0 0 0" }}>ID</th>
+                <th>User ID</th>
+                <th style={{ minWidth: 200 }}>Message</th>
+                <th>Created At</th>
+                <th>Submitted At</th>
+                <th>Reply</th>
+                <th>Status</th>
+                <th style={{ borderRadius: "0 18px 0 0" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {feedbacks.length ? feedbacks.map((fb, i) => (
+                <tr key={fb.id}
+                  style={{
+                    borderTop: i === 0 ? "none" : "1px solid #2d3756",
+                    background: i % 2 === 0 ? "rgba(26,33,55,0.99)" : "rgba(38,45,70,0.98)",
+                    transition: "background 0.17s"
+                  }}
+                >
+                  <td style={{ padding: "15px 16px 15px 26px", color: "#a5ccff", fontWeight: 700 }}>{fb.id}</td>
+                  <td style={{ color: "#7aaaff", fontWeight: 600 }}>{fb.userId ?? fb.user_id}</td>
+                  <td style={{ color: "#e3ecff", maxWidth: 340, wordBreak: "break-word" }}>{fb.message}</td>
+                  <td style={{ color: "#b4d2ff" }}>{String(fb.createdAt ?? "").replace("T", " ").slice(0, 19)}</td>
+                  <td style={{ color: "#b4d2ff" }}>{String(fb.submittedAt ?? "").replace("T", " ").slice(0, 19)}</td>
+                  <td style={{ color: "#17d3ec", fontWeight: 600 }}>
+                    {fb.reply ? (<span><span style={{ color: "#aee4ff", fontSize: 13, fontWeight: 400 }}>Replied:</span><br />{fb.reply}</span>) :
+                      (<span style={{ color: "#8889", fontStyle: "italic" }}>No reply</span>)}
+                  </td>
+                  <td>
+                    <span style={{
+                      display: "inline-block", borderRadius: 8, fontWeight: 700, padding: "5px 18px",
+                      color: "#fff", fontSize: 15, background: statusColor(fb.status), boxShadow: "0 1px 5px #2223",
+                      letterSpacing: ".01em", minWidth: 78, textAlign: "center", textTransform: "capitalize"
+                    }}>
+                      {fb.status || "N/A"}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {fb.status === "open" && (
+                        <button
+                          onClick={() => { setReplyingId(fb.id); setReplyText(""); }}
+                          disabled={replyingId === fb.id}
+                          style={{
+                            padding: "7px 18px", borderRadius: 8, border: "none", background: "#0984e3",
+                            color: "#fff", fontWeight: 700, fontSize: 15,
+                            cursor: replyingId === fb.id ? "not-allowed" : "pointer",
+                            boxShadow: "0 1px 7px #0984e340"
+                          }}
+                          title="Reply"
+                        >
+                          <FaReply />
+                        </button>
+                      )}
+                      {replyingId === fb.id && (
+                        <div>
+                          <textarea
+                            style={{
+                              width: "100%", minHeight: "100px", borderRadius: "8px", padding: "10px", marginTop: "8px",
+                              background: "#263556", color: "#fff"
+                            }}
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Write your reply here..."
+                          />
+                          <button
+                            style={{ background: "#0984e3", color: "#fff", padding: "8px 20px", borderRadius: "6px", marginTop: "8px", cursor: "pointer" }}
+                            onClick={() => handleReply(fb.id)}
+                          >
+                            Submit Reply
+                          </button>
+                        </div>
+                      )}
+
+                      {(fb.status === "open" || fb.status === "replied") && (
+                        <button
+                          onClick={() => handleResolve(fb.id)}
+                          disabled={resolvingId === fb.id}
+                          style={{
+                            padding: "6px 15px", borderRadius: 7, border: "none",
+                            background: resolvingId === fb.id ? "#23c48390" : "#23c483",
+                            color: "#fff", fontWeight: 700, fontSize: 14, marginRight: 2,
+                            cursor: resolvingId === fb.id ? "not-allowed" : "pointer",
+                            boxShadow: resolvingId === fb.id ? "" : "0 1px 7px #23c48340"
+                          }}
+                          title="Mark as Resolved"
+                        >
+                          <FaCheck />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleDelete(fb.id)}
+                        disabled={deletingId === fb.id}
+                        style={{
+                          padding: "7px 18px", borderRadius: 8, border: "none",
+                          background: deletingId === fb.id ? "#e74c3c80" : "#e74c3c",
+                          color: "#fff", fontWeight: 700, fontSize: 15,
+                          cursor: deletingId === fb.id ? "not-allowed" : "pointer",
+                          marginLeft: 2, boxShadow: deletingId === fb.id ? "" : "0 1px 7px #e74c3c30"
+                        }}
+                        title="Delete Feedback"
+                      >
+                        <FaTrashAlt />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={8} style={{ color: "#8fa6c6", textAlign: "center", padding: "2.5rem", fontStyle: "italic" }}>
+                    No feedback found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Charts */}
+      <div style={{ marginTop: "2rem", maxWidth: 800, width: "100%" }}>
+        <h3 style={{ color: "#7dbbff", fontWeight: 800, fontSize: 25, marginBottom: 12 }}>
+          Most Common Feedback Issues
+        </h3>
+        <ResponsiveContainer width="100%" height={340}>
+          <BarChart data={commonIssues} layout="vertical" margin={{ left: 10, right: 20 }}>
+            <CartesianGrid strokeDasharray="4 4" />
+            <XAxis type="number" allowDecimals={false} />
+            <YAxis
+              type="category"
+              dataKey="issue"
+              width={160}
+              tick={{ fill: "#cbe4ff", fontSize: 16, fontWeight: 600 }}
+            />
+            <Tooltip content={<IssueTooltip />} />
+            <Bar dataKey="count" fill="#2492fa" radius={[10, 10, 10, 10]}>
+              <LabelList dataKey="count" position="right" fill="#fff" fontWeight={700} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+
+        <h3 style={{ color: "#7dbbff", fontWeight: 800, fontSize: 25, marginTop: 28, marginBottom: 12 }}>
+          Feedback Status (This Page)
+        </h3>
+        <ResponsiveContainer width="100%" height={320}>
+          <PieChart>
+            <Pie data={pieData} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={100} fill="#2492fa" label>
+              {pieData.map((_, idx) => (
+                <Cell key={idx} fill={idx % 2 === 0 ? "#00c853" : "#f44336"} />
+              ))}
+            </Pie>
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ message: "", type: "info" })}
+      />
+    </div>
+  );
+}
+
+export default Feedback;
