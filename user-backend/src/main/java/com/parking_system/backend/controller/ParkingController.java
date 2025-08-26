@@ -67,6 +67,10 @@ public class ParkingController {
         return ResponseEntity.ok(parkingService.getActiveById(parkedId));
     }
 
-
+    @PostMapping("/cancel")
+    public ResponseEntity<Void> cancel(@RequestBody CancelParkRequest req) {
+        parkingService.cancelPendingPark(req.getParkedId(), req.getUserId());
+        return ResponseEntity.ok().build();
+    }
 
 }

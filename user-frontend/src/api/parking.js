@@ -22,6 +22,9 @@ export function unparkCar(req) {
   return parkingApi.post('/unpark', req)
 }
 
+export const cancelPark = (payload /* { parkedId, userId } */) =>
+  axios.post("/api/parking/cancel", payload);
+
 export function getBuildings() {
   return parkingApi.get('/buildings');
 }

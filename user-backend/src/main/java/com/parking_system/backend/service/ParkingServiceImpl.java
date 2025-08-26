@@ -3,15 +3,15 @@ package com.parking_system.backend.service;
 import com.parking_system.backend.dto.*;
 import com.parking_system.backend.model.*;
 import com.parking_system.backend.repository.*;
+
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
-// imports at top (add)
-import java.math.RoundingMode;
 
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.Duration;
 import java.util.*;
@@ -27,7 +27,10 @@ public class ParkingServiceImpl implements ParkingService {
     @Autowired private PaymentRepository paymentRepo;
     @Autowired private BuildingRepository buildingRepo;
     @Autowired private SlotKeyRepository slotKeyRepo;
-    private static final Pattern PLATE_RE = Pattern.compile("^[A-Z]{1}[A-Z]-\\d{4}$|^[1-9]{1}[A-Z]{1}-\\d{4}$");
+
+    // Accept AA-1234 and 1A-1234
+    private static final Pattern PLATE_RE =
+            Pattern.compile("^[A-Z]{2}-\\d{4}$|^[1-9][A-Z]-\\d{4}$");
 
     @Override
     @Transactional
@@ -39,24 +42,25 @@ public class ParkingServiceImpl implements ParkingService {
                     "Invalid car number format. Use formats like 1A-1234 or AA-1234"
             );
         }
-            // Defensive check: Prevent double parking
+
+        // Prevent double parking (return precise message)
         if (parkedCarRepo.findByCarNumberAndExitTimeIsNull(req.getCarNumber()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Car is already parked!");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Duplicated Car Number");
         }
 
         // 1) Find slot by ID
         Slot slot = slotRepo.findById(req.getSlotId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Slot not found"));
 
-        // 2) Check slot is available
-        if (slot.getIsOccupied()) {
+        // 2) Check slot is available (return precise message)
+        if (Boolean.TRUE.equals(slot.getIsOccupied())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Selected slot is already occupied!");
         }
 
         // 3) Create ParkedCar
         ParkedCar car = new ParkedCar();
         car.setUser(new User(req.getUserId()));
-        car.setCarNumber(req.getCarNumber());
+        car.setCarNumber(raw); // store normalized uppercase
         car.setSlot(slot);
         car.setEntryTime(LocalDateTime.now());
 
@@ -65,7 +69,7 @@ public class ParkingServiceImpl implements ParkingService {
         slotRepo.save(slot);
         ParkedCar saved = parkedCarRepo.save(car);
 
-        // 5) Generate and store 4-digit one-time key
+        // 5) Generate and store 4-digit one-time key (5 min)
         String code = String.valueOf((int)(Math.random() * 9000) + 1000);
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
 
@@ -85,30 +89,31 @@ public class ParkingServiceImpl implements ParkingService {
         dto.setEntryTime(saved.getEntryTime());
         dto.setBuildingName(slot.getBuilding().getName());
         dto.setKey(code); // One-time key for UI
-
         return dto;
     }
 
-    // UNPARK: (existing logic unchanged)
     @Override
     @Transactional
     public HistoryDto unpark(UnparkRequest req) {
-        ParkedCar car = parkedCarRepo.findByCarNumberAndExitTimeIsNull(req.getCarNumber())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active car not found: " + req.getCarNumber()));
+        ParkedCar car = parkedCarRepo.findByCarNumberAndExitTimeIsNull(
+                Optional.ofNullable(req.getCarNumber()).orElse("").toUpperCase()
+        ).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND, "Active car not found: " + req.getCarNumber()
+        ));
 
         car.setExitTime(LocalDateTime.now());
 
-// Get rate per hour from DB
+        // Get rate per hour from DB
         BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
                 .getRatePerHour();
 
-// ✅ per-minute pro-rate
+        // Per-minute with 60-minute grace
         BigDecimal fee = computeFee(car.getEntryTime(), car.getExitTime(), rate);
 
         car.setFee(fee);
         parkedCarRepo.save(car);
-
 
         Slot slot = car.getSlot();
         slot.setIsOccupied(false);
@@ -116,7 +121,6 @@ public class ParkingServiceImpl implements ParkingService {
 
         Payment payment = new Payment();
         payment.setParkedCar(car);
-        // Or get from req if needed
         payment.setAmount(fee);
         paymentRepo.save(payment);
 
@@ -131,11 +135,9 @@ public class ParkingServiceImpl implements ParkingService {
         return dto;
     }
 
-    // ACTIVE STATUS
     @Override
     public List<ActiveDto> getActiveStatus(Integer userId) {
         return parkedCarRepo.findByUser_IdAndExitTimeIsNull(userId)
-
                 .stream()
                 .map(c -> {
                     ActiveDto d = new ActiveDto();
@@ -144,16 +146,13 @@ public class ParkingServiceImpl implements ParkingService {
                     d.setSlotNumber(c.getSlot().getSlotNumber());
                     d.setEntryTime(c.getEntryTime());
                     d.setBuildingName(c.getSlot().getBuilding().getName());
-                    // d.setKey(null); // Optionally: don't expose key here
                     return d;
                 }).collect(Collectors.toList());
     }
 
-    // HISTORY
     @Override
     public List<HistoryDto> getHistory(Integer userId) {
         return parkedCarRepo.findByUser_IdAndExitTimeIsNotNull(userId)
-
                 .stream()
                 .map(c -> {
                     HistoryDto d = new HistoryDto();
@@ -168,7 +167,6 @@ public class ParkingServiceImpl implements ParkingService {
                 }).collect(Collectors.toList());
     }
 
-    // BUILDINGS
     @Override
     public List<BuildingDto> getAllBuildings() {
         return buildingRepo.findAll().stream()
@@ -176,7 +174,6 @@ public class ParkingServiceImpl implements ParkingService {
                 .collect(Collectors.toList());
     }
 
-    // SLOTS BY BUILDING
     @Override
     public List<SlotDto> getSlotsByBuilding(Integer buildingId) {
         return slotRepo.findByBuilding_Id(buildingId)
@@ -186,12 +183,11 @@ public class ParkingServiceImpl implements ParkingService {
                         s.getSlotNumber(),
                         s.getSlotType(),
                         s.getIsOccupied(),
-                        s.getFloor()      // <-- Now includes floor!
+                        s.getFloor()
                 ))
                 .collect(Collectors.toList());
     }
 
-    // VERIFY SLOT KEY
     @Override
     public String verifySlotKey(Integer userId, Integer slotId, String inputKey) {
         Optional<SlotKey> optional = slotKeyRepo.findTopByUserIdAndSlotIdAndKeyCodeOrderByIdDesc(
@@ -214,32 +210,27 @@ public class ParkingServiceImpl implements ParkingService {
         ParkedCar car = parkedCarRepo.findById(parkedId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found"));
 
-        // Set exitTime (if not set)
-        // Set exitTime (if not set)
         if (car.getExitTime() == null) {
             car.setExitTime(LocalDateTime.now());
         }
 
-// Get fixed rate from DB
         BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
                 .getRatePerHour();
 
-// ✅ per-minute pro-rate
         BigDecimal fee = computeFee(car.getEntryTime(), car.getExitTime(), rate);
 
         car.setFee(fee);
         parkedCarRepo.save(car);
 
-
-        // Save payment (simulate "paid")
         Payment payment = paymentRepo.findByParkedCar(car).orElse(new Payment());
         payment.setParkedCar(car);
         payment.setAmount(fee);
         payment.setPaymentTime(LocalDateTime.now());
         paymentRepo.save(payment);
 
-        // **FREE THE SLOT**
+        // Free the slot
         Slot slot = car.getSlot();
         slot.setIsOccupied(false);
         slotRepo.save(slot);
@@ -270,35 +261,78 @@ public class ParkingServiceImpl implements ParkingService {
         dto.setUserId(car.getUser().getId());
         dto.setEntryTime(car.getEntryTime());
         dto.setBuildingName(car.getSlot().getBuilding().getName());
-        // Calculate a "preview" fee even if not unparked yet!
+
         BigDecimal fee = car.getFee();
         if (fee == null) {
             BigDecimal rate = rateRepo.findBySlotType(car.getSlot().getSlotType())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR, "Parking rate not defined for slot type"))
                     .getRatePerHour();
-
-            // ✅ preview uses now as exit for a live estimate
-            fee = computeFee(car.getEntryTime(), LocalDateTime.now(), rate);
+            fee = computeFee(car.getEntryTime(), LocalDateTime.now(), rate); // live estimate
         }
         dto.setFee(fee);
-
-        // <------ THIS!
         return dto;
     }
-    // Add this helper inside ParkingServiceImpl
+
+
     private BigDecimal computeFee(LocalDateTime entry, LocalDateTime exit, BigDecimal hourlyRate) {
-        if (entry == null || exit == null || hourlyRate == null) {
-            return BigDecimal.ZERO;
-        }
-        long minutes = Duration.between(entry, exit).toMinutes();
-        if (minutes <= 0) {
-            return BigDecimal.ZERO; // treat <1 min as free; change to 1 if you want a minimum 1-min charge
-        }
-        // fee = rate_per_hour * (minutes / 60), rounded UP to whole MMK
-        return hourlyRate
+        if (entry == null || exit == null || hourlyRate == null) return BigDecimal.ZERO;
+
+        // ceil to the next full minute so 30m01s counts as 31 minutes
+        long seconds = Duration.between(entry, exit).getSeconds();
+        if (seconds <= 0) return BigDecimal.ZERO;
+        long minutes = (seconds + 59) / 60; // ceiling division to minutes
+
+        // 0–30 min: free
+        if (minutes <= 30) return BigDecimal.ZERO;
+
+        // pro-rate: hourlyRate * minutes / 60, round UP
+        BigDecimal fee = hourlyRate
                 .multiply(BigDecimal.valueOf(minutes))
                 .divide(BigDecimal.valueOf(60), 0, RoundingMode.CEILING);
+
+        // minimum charge after 30 minutes is 1,500 MMK
+        return fee.max(new BigDecimal("1500"));
     }
 
 
+    // Cancel pending parking when key verification never happened / user closed modal.
+    @Override
+    @Transactional
+    public void cancelPendingPark(Integer parkedId, Integer userId) {
+        ParkedCar car = parkedCarRepo.findById(parkedId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending parking not found."));
+
+        // (Optional) ownership check
+        if (userId != null && car.getUser() != null && car.getUser().getId() != null
+                && !Objects.equals(car.getUser().getId(), userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot cancel this parking session.");
+        }
+
+        if (car.getExitTime() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This parking session has already been finalized.");
+        }
+
+        // Free the slot
+        Slot slot = car.getSlot();
+        if (slot != null) {
+            slot.setIsOccupied(false);
+            slotRepo.save(slot);
+        }
+
+        // Invalidate the latest key for this user/slot (so it can't be used later)
+        if (car.getUser() != null && slot != null) {
+            slotKeyRepo.findTopByUserIdAndSlotIdOrderByIdDesc(
+                    car.getUser().getId().longValue(), slot.getId().longValue()
+            ).ifPresent(k -> {
+                if (Boolean.FALSE.equals(k.getUsed())) {
+                    k.setUsed(true);
+                    slotKeyRepo.save(k);
+                }
+            });
+        }
+
+        // Remove the parked car record (verification never succeeded)
+        parkedCarRepo.delete(car);
+    }
 }

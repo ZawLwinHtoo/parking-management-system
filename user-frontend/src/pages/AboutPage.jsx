@@ -16,7 +16,7 @@ export default function AboutPage() {
               <h1 className="fw-bold text-light m-0" style={{ textShadow: "0 2px 10px #0005" }}>
                 About SPARK
               </h1>
-              <p className="lead mb-0 text-info">A modern, user-friendly parking experience.</p>
+             
             </div>
             <span className="badge bg-secondary fs-6 px-3 py-2">Version 1.0.0</span>
           </div>

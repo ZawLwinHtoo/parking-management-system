@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { getBuildings, getSlotsByBuilding, parkCar } from "../api/parking";
+import { getBuildings, getSlotsByBuilding, parkCar, cancelPark } from "../api/parking";
 import { Button, Form, Modal } from "react-bootstrap";
 import Parking3DSelector from "./Parking3DSelector";
 import { useNavigate } from "react-router-dom";
@@ -13,44 +13,82 @@ export default function ParkForm({ userId, onSuccess }) {
   const [error, setError] = useState("");
   const [plateError, setPlateError] = useState("");
 
-  // Modal state
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [slotKey, setSlotKey] = useState("");
   const [slotNumber, setSlotNumber] = useState("");
   const [buildingName, setBuildingName] = useState("");
+  const [parkedId, setParkedId] = useState(null);
 
   const navigate = useNavigate();
+  const PLATE_RE = useMemo(() => /^(?:[A-Z]{2}-\d{4}|[1-9][A-Z]-\d{4})$/, []);
 
-  // Updated regex to support both "AA-1234" and "1A-1234"
-  const PLATE_RE = useMemo(() => /^[A-Z]{1}[A-Z]-\d{4}$|^[1-9]{1}[A-Z]{1}-\d{4}$/, []);
-
-  useEffect(() => {
-    getBuildings().then((res) => setBuildings(res.data));
-  }, []);
-
+  useEffect(() => { getBuildings().then(res => setBuildings(res.data)); }, []);
   useEffect(() => {
     if (selectedBuilding) {
-      getSlotsByBuilding(selectedBuilding).then((res) => setSlots(res.data));
-      setSelectedSlotId(null); // reset selection when building changes
+      getSlotsByBuilding(selectedBuilding).then(res => setSlots(res.data));
+      setSelectedSlotId(null);
     }
   }, [selectedBuilding]);
 
   const onCarInput = (e) => {
-    const raw = e.target.value || "";
-    const normalized = raw.toUpperCase().replace(/\s+/g, "");
+    const normalized = (e.target.value || "").toUpperCase().replace(/\s+/g, "");
     setCarNumber(normalized);
-
     if (!normalized) setPlateError("");
-    else if (!PLATE_RE.test(normalized)) setPlateError("Enter correct car number (e.g., AA-1234 or 1A-1234)");
+    else if (!PLATE_RE.test(normalized)) setPlateError("Enter a correct plate (AA-1234 or 1A-1234).");
     else setPlateError("");
+  };
+
+  // Robust extractor: JSON, ProblemDetail, plain text, Blob
+  const extractErrorMessage = async (err) => {
+    const res = err?.response;
+    if (!res) return "Network error. Please try again.";
+
+    let data = res.data;
+    try {
+      if (data instanceof Blob) {
+        const text = await data.text();
+        try { data = JSON.parse(text); } catch { data = text; }
+      }
+    } catch { /* noop */ }
+
+    const msg =
+      (typeof data === "string" && data) ||
+      data?.detail ||
+      data?.message ||
+      data?.error ||
+      data?.title ||
+      null;
+
+    if (msg) {
+      // normalize a couple of known cases
+      if (/duplicated car number/i.test(msg) || /already parked/i.test(msg)) {
+        return "Duplicated Car Number";
+      }
+      if (/occupied/i.test(msg)) return "Selected slot is already occupied!";
+      if (/invalid car number/i.test(msg)) return "Invalid car number format. Use formats like 1A-1234 or AA-1234";
+      return msg;
+    }
+
+    // Smart fallback for 409 when body had no message
+    if (res.status === 409) {
+      // If we *know* locally that the slot shows occupied, prefer that message
+      const slot = slots.find(s => String(s.id) === String(selectedSlotId));
+      if (slot?.isOccupied) return "Selected slot is already occupied!";
+      // Otherwise give a helpful combined hint
+      return "Duplicated Car Number or the slot was taken just now. Please refresh and try again.";
+    }
+
+    if (res.status === 400) return "Invalid input. Check your car number and try again.";
+    if (res.status === 404) return "Selected slot could not be found. Please refresh the page.";
+    return res.statusText || "Something went wrong. Please try again.";
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!PLATE_RE.test(carNumber)) {
-      setPlateError("Enter correct car number (e.g., AA-1234 or 1A-1234)");
+    if (!PLATE_RE.test((carNumber || "").toUpperCase())) {
+      setPlateError("Enter a correct plate (AA-1234 or 1A-1234).");
       return;
     }
 
@@ -60,36 +98,38 @@ export default function ParkForm({ userId, onSuccess }) {
         carNumber: carNumber.toUpperCase(),
         slotId: selectedSlotId,
       });
-
-      const { key, slotNumber, buildingName } = res.data;
+      const { parkedId: pid, key, slotNumber, buildingName } = res.data;
+      setParkedId(pid);
       setSlotKey(key);
       setSlotNumber(slotNumber);
       setBuildingName(buildingName);
       setShowKeyModal(true);
     } catch (err) {
-      setError(err.response?.data?.message || "Park failed");
+      setError(await extractErrorMessage(err));
     }
   };
 
-  // Ensure floor exists
-  const slotsWithFloor = slots.map((slot) => ({ ...slot, floor: slot.floor ?? 1 }));
+  const handleCancelPark = async () => {
+    try {
+      if (parkedId) await cancelPark({ parkedId, userId });
+      setError("Parking was cancelled before code verification. Your slot has been released.");
+    } catch (err) {
+      setError(await extractErrorMessage(err));
+    } finally {
+      setShowKeyModal(false);
+      setCarNumber("");
+      setSelectedSlotId(null);
+      setSelectedBuilding("");
+      setParkedId(null);
+      onSuccess && onSuccess();
+    }
+  };
 
-  // Convenience lookups for the info chip
-  const selectedBuildingObj = useMemo(
-    () => buildings.find((b) => b.id === Number(selectedBuilding)),
-    [buildings, selectedBuilding]
-  );
-
-  // Use selectedSlotId to get the selected slot
-  const selectedSlot = useMemo(
-    () => slots.find((s) => String(s.id) === String(selectedSlotId)),
-    [slots, selectedSlotId]
-  );
-
-  function handleEnterKey() {
-    const tempUserId = userId;
-    const tempSlotId = selectedSlotId;
-    const tempKey = slotKey;
+  const handleEnterKey = () => {
+    const tempUserId   = userId;
+    const tempSlotId   = selectedSlotId;
+    const tempKey      = slotKey;
+    const tempParkedId = parkedId;
 
     setShowKeyModal(false);
     setCarNumber("");
@@ -97,40 +137,32 @@ export default function ParkForm({ userId, onSuccess }) {
     setSelectedBuilding("");
     onSuccess && onSuccess();
 
-    setTimeout(() => {
-      navigate("/key-entry", {
-        state: { userId: tempUserId, slotId: tempSlotId, key: tempKey },
-      });
-    }, 0);
-  }
+    navigate("/key-entry", {
+      state: { userId: tempUserId, slotId: tempSlotId, key: tempKey, parkedId: tempParkedId },
+    });
+  };
+
+  const slotsWithFloor = slots.map((slot) => ({ ...slot, floor: slot.floor ?? 1 }));
+  const selectedBuildingObj = useMemo(
+    () => buildings.find((b) => b.id === Number(selectedBuilding)),
+    [buildings, selectedBuilding]
+  );
+  const selectedSlot = useMemo(
+    () => slots.find((s) => String(s.id) === String(selectedSlotId)),
+    [slots, selectedSlotId]
+  );
 
   const submitDisabled =
-    !selectedSlotId ||
-    !selectedBuilding ||
-    !carNumber ||
-    !!plateError ||
-    !PLATE_RE.test(carNumber);
+    !selectedSlotId || !selectedBuilding || !carNumber || !!plateError || !PLATE_RE.test(carNumber);
 
   return (
     <>
-      <Form
-        onSubmit={handleSubmit}
-        className="mb-3 bg-dark p-4 rounded shadow-lg"
-        style={{ maxWidth: "500px", margin: "0 auto" }}
-      >
+      <Form onSubmit={handleSubmit} className="mb-3 bg-dark p-4 rounded shadow-lg" style={{ maxWidth: "500px", margin: "0 auto" }}>
         <Form.Group className="mb-3">
           <Form.Label className="text-light">Select Building</Form.Label>
-          <Form.Select
-            value={selectedBuilding}
-            onChange={(e) => setSelectedBuilding(e.target.value)}
-            required
-          >
+          <Form.Select value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)} required>
             <option value="">-- Choose Building --</option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
+            {buildings.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </Form.Select>
         </Form.Group>
 
@@ -144,16 +176,9 @@ export default function ParkForm({ userId, onSuccess }) {
               onSelectSlot={(id) => setSelectedSlotId(Number(id))}
             />
 
-            {/* ✅ Persistent selected slot chip */}
             {selectedSlot && (
-              <div
-                className="d-flex align-items-center mt-3 px-3 py-2 rounded-3"
-                style={{
-                  background:
-                    "linear-gradient(120deg, rgba(52,74,123,.25), rgba(38,39,58,.65))",
-                  border: "1px solid rgba(255,255,255,.1)",
-                }}
-              >
+              <div className="d-flex align-items-center mt-3 px-3 py-2 rounded-3"
+                   style={{ background: "linear-gradient(120deg, rgba(52,74,123,.25), rgba(38,39,58,.65))", border: "1px solid rgba(255,255,255,.1)" }}>
                 <div className="me-3">
                   <span className="badge bg-primary me-2">Selected</span>
                   <strong className="text-light">{selectedSlot.slotNumber}</strong>
@@ -162,14 +187,7 @@ export default function ParkForm({ userId, onSuccess }) {
                   {selectedBuildingObj?.name || "Building"} • Floor {selectedSlot.floor}
                   {selectedSlot.slotType ? ` • ${selectedSlot.slotType}` : ""}
                 </div>
-                <Button
-                  variant="outline-light"
-                  size="sm"
-                  className="ms-auto"
-                  onClick={() => setSelectedSlotId(null)}
-                >
-                  Change
-                </Button>
+                <Button variant="outline-light" size="sm" className="ms-auto" onClick={() => setSelectedSlotId(null)}>Change</Button>
               </div>
             )}
           </>
@@ -183,14 +201,10 @@ export default function ParkForm({ userId, onSuccess }) {
             placeholder="e.g. AA-1234 or 1A-1234"
             className={`bg-dark text-light ${plateError ? "is-invalid" : ""}`}
           />
-          {plateError && <div className="invalid-feedback">{plateError}</div>}
         </Form.Group>
+        {plateError && <div className="invalid-feedback d-block">{plateError}</div>}
 
-        <Button
-          type="submit"
-          className="mt-3 w-100 btn-primary"
-          disabled={submitDisabled}
-        >
+        <Button type="submit" className="mt-3 w-100 btn-primary" disabled={submitDisabled}>
           {selectedSlot ? `Park in ${selectedSlot.slotNumber}` : "Park"}
         </Button>
 
@@ -199,8 +213,10 @@ export default function ParkForm({ userId, onSuccess }) {
 
       <Modal
         show={showKeyModal}
-        onHide={() => setShowKeyModal(false)}
+        onHide={handleCancelPark}
         centered
+        backdrop="static"
+        keyboard={false}
         data-bs-theme="dark"
         contentClassName="bg-dark text-light border-0 rounded-4"
       >
@@ -208,22 +224,17 @@ export default function ParkForm({ userId, onSuccess }) {
           <Modal.Title>Slot Entry Key</Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-center">
-          <h1 className="mb-2" style={{ letterSpacing: "8px" }}>
-            {slotKey}
-          </h1>
+          <h1 className="mb-2" style={{ letterSpacing: "8px" }}>{slotKey}</h1>
           <div className="my-2">
             <b>Slot:</b> {slotNumber} <br />
             <b>Building:</b> {buildingName}
           </div>
-          <div className="my-2 text-warning">
-            <b>This key is valid for 5 minutes only!</b>
-          </div>
+          <div className="my-2 text-warning"><b>This key is valid for 5 minutes only!</b></div>
           <div>Enter this code at the barrier to confirm your parking spot.</div>
         </Modal.Body>
-        <Modal.Footer className="border-0">
-          <Button variant="primary" onClick={handleEnterKey}>
-            Enter
-          </Button>
+        <Modal.Footer className="border-0 d-flex justify-content-between">
+          <Button variant="outline-light" onClick={handleCancelPark}>Cancel</Button>
+          <Button variant="primary" onClick={handleEnterKey}>Enter</Button>
         </Modal.Footer>
       </Modal>
     </>

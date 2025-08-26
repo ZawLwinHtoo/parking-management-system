@@ -79,9 +79,7 @@ export default function ContactPage() {
               <h1 className="fw-bold text-light mb-1" style={{ textShadow: "0 2px 10px #0005" }}>
                 Contact & Feedback
               </h1>
-              <p className="lead mb-0 text-info">
-                Hi <b>{user.fullName || user.username}</b>, tell us anything—our team will reply here.
-              </p>
+              
             </div>
             <div className="badge bg-secondary fs-6 px-3 py-2">
               Tickets: <span className="fw-semibold">{rows.length}</span>

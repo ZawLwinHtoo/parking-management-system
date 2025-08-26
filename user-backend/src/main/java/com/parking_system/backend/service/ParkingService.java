@@ -12,5 +12,6 @@ public interface ParkingService {
     List<SlotDto> getSlotsByBuilding(Integer buildingId);
     String verifySlotKey(Integer userId, Integer slotId, String inputKey);
     PaymentKeyResponse checkoutAndGenerateKey(Integer parkedId);
-    ActiveDto getActiveById(Integer parkedId); // << Add this!
+    ActiveDto getActiveById(Integer parkedId);
+    void cancelPendingPark(Integer parkedId, Integer userId);// << Add this!
 }

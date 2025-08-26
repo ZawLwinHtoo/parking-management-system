@@ -43,9 +43,7 @@ export default function HistoryPage() {
               <h1 className="fw-bold text-light m-0" style={{ textShadow: '0 2px 10px #0005' }}>
                 Parking History
               </h1>
-              <p className="lead mb-0 text-info">
-                History for <b>{user.fullName || user.username}</b>
-              </p>
+              
             </div>
             <button className="btn btn-outline-light" onClick={fetchHistory}>
               Refresh
