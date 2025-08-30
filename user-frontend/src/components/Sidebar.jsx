@@ -4,133 +4,91 @@ import { NavLink } from 'react-router-dom';
 export default function Sidebar({ onLogout }) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const linkBase =
-    'nav-link d-flex align-items-center rounded-3 px-3 py-3 text-decoration-none';  // Increased padding
-
-  const linkStyle = {
-    fontSize: '1.1rem',  // Increased font size
-    lineHeight: 1.4,
-    color: '#d8dbe3',
-    transition: 'background .15s ease, color .15s ease',
-  };
-
-  const activeStyle = {
-    background: 'rgba(255,255,255,.08)',
-    color: '#fff',
-    boxShadow: 'inset 0 0 0 1px rgba(120,150,220,.25)',
-    borderLeft: '3px solid #5a7bdc',
-  };
-
-  const linkClasses = ({ isActive }) => `${linkBase} ${isActive ? 'active' : ''}`;
-  const getItemStyle = (isActive) => ({ ...linkStyle, ...(isActive ? activeStyle : null) });
+  // Base style for nav links
+  const navStyle = ({ isActive }) => ({
+    padding: "12px 24px",
+    borderRadius: 8,
+    background: isActive ? "#3742fa" : "transparent",
+    color: isActive ? "#fff" : "#c0c6ce",
+    fontWeight: 600,
+    textDecoration: "none",
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    transition: "background 0.3s",
+  });
 
   return (
-    <aside
-      className="bg-dark text-light d-flex flex-column"
+    <nav
       style={{
-        height: '100vh',
-        width: 'var(--sidebar-width)',   // ← use CSS var
-        position: 'fixed',
-        top: 0,
+        position: "fixed",
         left: 0,
-        boxShadow: '2px 0 6px rgba(0,0,0,0.45)',
+        top: 0,
+        bottom: 0,
+        width: "320px",  /* Expanded sidebar width */
+        background: "#23242a",
+        color: "#fff",
+        padding: "2rem 1rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.5rem",
+        minHeight: "100vh",
+        zIndex: 100,
+        boxShadow: "2px 0 24px #0003",
       }}
-      data-bs-theme="dark"
     >
       {/* Brand */}
-      <div className="px-4 pt-4 pb-3 border-bottom border-secondary">
-        <div>
-          <h1
-            className="m-0 fw-bold"
-            style={{
-              // slightly larger + responsive, uses your Poppins heading font
-              fontFamily: 'var(--brand-heading, Poppins, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif)',
-              fontSize: 'clamp(2.25rem, 2rem + 0.8vw, 2.8rem)',
-              letterSpacing: '1px',
-              lineHeight: 1,
-            }}
-          >
-            SPARK
-          </h1>
-          <small
-            className="text-secondary text-uppercase"
-            style={{ letterSpacing: '0.12rem', fontSize: '0.7rem' }}
-          >
-            Smart Parking & Access Resources Kit
-          </small>
-        </div>
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: 30,  /* Increased font size */
+          marginBottom: 32,
+          textAlign: "center"
+        }}
+      >
+        SPARK
       </div>
 
-      {/* Nav */}
-      <nav className="flex-grow-1 overflow-auto px-2 py-3">
-        <ul className="nav nav-pills flex-column gap-1">
-          <li className="nav-item">
-            <NavLink
-              to="/dashboard"
-              end
-              className={linkClasses}
-              style={({ isActive }) => getItemStyle(isActive)}
-            >
-              <span>Dashboard</span>
-            </NavLink>
-          </li>
+      {/* Navigation Links */}
+      <NavLink to="/dashboard" style={navStyle} end>
+        Dashboard
+      </NavLink>
+      <NavLink to="/active" style={navStyle}>
+        Active Status
+      </NavLink>
+      <NavLink to="/history" style={navStyle}>
+        Parking History
+      </NavLink>
+      <NavLink to="/about" style={navStyle}>
+        About
+      </NavLink>
+      <NavLink to="/contact" style={navStyle}>
+        Contact
+      </NavLink>
+      <NavLink to="/profile" style={navStyle}>
+        <span role="img" aria-label="profile" style={{ fontSize: 20, marginRight: 2 }}>
+          👤
+        </span>
+        <span style={{ color: "#61dafb", fontWeight: 600 }}>Profile</span>
+      </NavLink>
 
-          <li className="nav-item">
-            <NavLink
-              to="/active"
-              className={linkClasses}
-              style={({ isActive }) => getItemStyle(isActive)}
-            >
-              <span>Active Status</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink
-              to="/history"
-              className={linkClasses}
-              style={({ isActive }) => getItemStyle(isActive)}
-            >
-              <span>Parking History</span>
-            </NavLink>
-          </li>
-          <li className="nav-item">
-            <NavLink to="/about" className={linkClasses} style={({ isActive }) => getItemStyle(isActive)}>
-              <span>About</span>
-            </NavLink>
-          </li>
-          <li className="nav-item">
-            <NavLink
-              to="/contact"
-              className={linkClasses}
-              style={({ isActive }) => getItemStyle(isActive)}
-            >
-              <span>Contact</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink
-              to="/profile"
-              className={linkClasses}
-              style={({ isActive }) => getItemStyle(isActive)}
-            >
-              <span>Profile</span>
-            </NavLink>
-          </li>
-        </ul>
-      </nav>
-
-      {/* Footer / Logout */}
-      <div className="px-3 pb-4 pt-2 border-top border-secondary">
-        <button
-          onClick={onLogout}
-          className="btn btn-outline-light w-100 fw-semibold py-3 rounded-3"  // Increased button padding
-          style={{ fontSize: '1rem' }}  // Increased font size
-        >
-          Logout
-        </button>
-      </div>
-    </aside>
+      {/* Logout Button */}
+      <button
+        onClick={onLogout}
+        style={{
+          marginTop: "auto",
+          background: "#e74c3c",
+          color: "#fff",
+          border: "none",
+          borderRadius: 8,
+          padding: "12px 0",
+          fontWeight: 700,
+          cursor: "pointer",
+          fontSize: 16,
+        }}
+      >
+        Logout
+      </button>
+    </nav>
   );
 }

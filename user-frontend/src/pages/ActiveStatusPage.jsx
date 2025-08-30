@@ -33,7 +33,6 @@ export default function ActiveStatusPage() {
               <h1 className="fw-bold text-light m-0" style={{ textShadow: "0 2px 10px #0005" }}>
                 Active Parking Status
               </h1>
-              
             </div>
             <div className="d-flex align-items-center gap-2">
               <span className="badge bg-secondary fs-6 px-3 py-2">
@@ -45,13 +44,9 @@ export default function ActiveStatusPage() {
             </div>
           </div>
 
-          <div className="card shadow-lg border-0 rounded-4">
-            <div
-              className="card-body"
-              style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)" }}
-            >
-              <ActiveStatus activeList={activeList} />
-            </div>
+          {/* Removed the white card and card-body styles */}
+          <div style={{ background: "linear-gradient(120deg, #26273a 80%, #344a7b 100%)", borderRadius: "10px", padding: "20px" }}>
+            <ActiveStatus activeList={activeList} />
           </div>
         </div>
       </main>

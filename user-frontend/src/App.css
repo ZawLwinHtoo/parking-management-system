@@ -1,11 +1,10 @@
 /* ---- Brand fonts ---- */
-:root{
+:root {
   --brand-heading: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
   --brand-body: 'Open Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
-    --sidebar-width: 280px;  /* keep in sync with Sidebar */
+  --sidebar-width: 320px;  /* Expanded sidebar width */
   --content-gap: 18px;     /* the gap between sidebar and content */
   --page-pad: 24px;  
-  /* Make Bootstrap use Open Sans by default */
   --bs-font-sans-serif: var(--brand-body);
 }
 
@@ -13,73 +12,82 @@
 html, body, #root { height: 100%; }
 body {
   margin: 0;
-  background: transparent;      /* let each page provide its own bg */
+  background: transparent; /* let each page provide its own bg */
   font-family: var(--brand-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .page-main {
-  /* push content past the sidebar only */
+  /* Adjust the content width to take into account the wider sidebar */
   margin-left: var(--sidebar-width);
-
-  /* add the visual gap inside the element so it gets the bg */
   padding: var(--page-pad);
-  padding-left: calc(var(--page-pad) + var(--content-gap));
-
+  padding-left: calc(var(--page-pad) + var(--content-gap));  /* Ensure content has a gap from the sidebar */
   min-height: 100vh;
-  width: 100%;
-
+  width: calc(100% - var(--sidebar-width));  /* Subtract sidebar width from content */
   background: linear-gradient(120deg, #25263b 70%, #283148 100%);
 }
-
 
 .container-fluid.page-container {
   padding-left: 0;
   padding-right: 0;
 }
-/* Headings & key titles use Poppins */
-h1, h2, h3, h4, h5, h6,
-.display-1, .display-2, .display-3, .display-4,
-.navbar-brand, .offcanvas-title, .modal-title,
-.sidebar-brand, .brand-title {
-  font-family: var(--brand-heading);
-  font-weight: 600;
-  letter-spacing: .2px;
-}
 
-/* Optional utilities */
-.font-heading { font-family: var(--brand-heading) !important; }
-.font-body { font-family: var(--brand-body) !important; }
-
-/* ---- Remove Vite demo styles that were constraining layout ---- */
-/* (Deleted #root max-width/padding/text-align and logo demo rules) */
-
-/* -------- Loaders -------- */
-.page-loader {
+/* ---- Sidebar styling ---- */
+.sidebar {
   position: fixed;
-  inset: 0;
-  z-index: 2000;
-  background: rgba(7, 9, 15, 0.35);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);  /* Updated sidebar width */
+  height: 100vh;
+  background-color: #23242a;
+  color: #fff;
+  padding: 2rem 1rem;
+  box-shadow: 2px 0 24px #0003;
+  z-index: 100;
 }
 
-.page-loader .loader-card {
-  background: rgba(38, 39, 58, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 24px 32px;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+.sidebar h2 {
+  color: #fff;
+  font-size: 1.8rem;
+  font-weight: 700;
   text-align: center;
+  margin-bottom: 40px;
 }
 
-.section-loader {
+/* Sidebar Navigation Links */
+.sidebar nav a {
+  color: #c0c6ce;
+  text-decoration: none;
+  padding: 12px 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 160px;        /* makes tables/cards not jump */
-  padding: 24px;
+  gap: 12px;
+  transition: background-color 0.3s;
 }
+
+.sidebar nav a:hover {
+  background-color: #3742fa;
+}
+
+.sidebar nav a.active {
+  background-color: #3742fa;
+  color: #fff;
+}
+
+/* ---- Logout Button ---- */
+.sidebar button {
+  margin-top: auto;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 16px;
+}
+
