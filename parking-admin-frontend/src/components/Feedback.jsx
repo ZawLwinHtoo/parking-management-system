@@ -1,11 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { FaReply, FaCheck, FaTrashAlt } from "react-icons/fa";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, LabelList, PieChart, Pie, Cell, Legend
-} from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
-/* ---------- Toast ---------- */
+// Toast component
 function Toast({ message, type = "info", onClose }) {
   if (!message) return null;
   const bg = type === "success" ? "#1abc9c" : type === "error" ? "#e74c3c" : "#4361ee";
@@ -26,22 +23,84 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
-/* ---------- Tooltip for issues chart ---------- */
-const IssueTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    const { issue, count } = payload[0].payload || {};
-    return (
-      <div style={{
-        background: "#1e2a47", color: "#fff", padding: "10px 12px",
-        borderRadius: 8, boxShadow: "0 6px 18px #0007", fontSize: 14
-      }}>
-        <div style={{ fontWeight: 800, marginBottom: 4 }}>{issue}</div>
-        <div>count: <b>{count}</b></div>
+/** Modal for writing a reply */
+function ReplyModal({ open, onClose, onSubmit, value, onChange }) {
+  if (!open) return null;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(16,24,39,0.55)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 1100, backdropFilter: "blur(2px)"
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "min(680px, 92vw)",
+          background: "#22314f",
+          border: "1px solid #3550817a",
+          borderRadius: 14,
+          boxShadow: "0 14px 44px #0b11233f",
+          padding: 22,
+          color: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between"
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: 10, fontWeight: 800, color: "#a9c8ff" }}>
+          Write a reply
+        </h3>
+        <textarea
+          autoFocus
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Type your reply…"
+          style={{
+            width: "96%",
+            minHeight: "160px",
+            padding: "12px 15px",
+            borderRadius: "8px",
+            border: "1px solid #415a8f",
+            background: "#1b2741",
+            color: "#eaf2ff",
+            fontSize: "15.5px",
+            outline: "none",
+            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+            transition: "box-shadow 0.3s ease-in-out",
+            resize: "vertical",
+            maxHeight: "250px", // Limit height of textarea
+            overflowY: "auto"
+          }}
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: "#e74c3c", color: "#fff", border: "none", borderRadius: "8px",
+              padding: "10px 18px", fontWeight: 700, cursor: "pointer", transition: "background-color 0.3s ease",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSubmit}
+            style={{
+              background: "#0984e3", color: "#fff", border: "none", borderRadius: "8px",
+              padding: "10px 18px", fontWeight: 700, cursor: "pointer", transition: "background-color 0.3s ease",
+            }}
+          >
+            Submit Reply
+          </button>
+        </div>
       </div>
-    );
-  }
-  return null;
-};
+    </div>
+  );
+}
 
 function Feedback() {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -50,19 +109,19 @@ function Feedback() {
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [deletingId, setDeletingId] = useState(null);
   const [resolvingId, setResolvingId] = useState(null);
+
+  // reuse these for modal reply
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState("");
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");  // new
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
 
   const [currentPage, setCurrentPage] = useState(1);
   const feedbacksPerPage = 5;
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
-
-  // analytics
-  const [rawCommonIssues, setRawCommonIssues] = useState([]);
 
   // ---- fetch table data ----
   const fetchFeedbacks = () => {
@@ -70,11 +129,10 @@ function Feedback() {
     setError("");
 
     const queryParams = new URLSearchParams({
-      status: statusFilter,
+      status: statusFilter === "all" ? "" : statusFilter,
       page: currentPage,
       size: feedbacksPerPage,
-      dateFilter,
-      categoryFilter
+      dateFilter
     }).toString();
 
     fetch(`/api/feedback?${queryParams}`)
@@ -98,40 +156,9 @@ function Feedback() {
       .finally(() => setLoading(false));
   };
 
-  // ---- fetch analytics (entire DB) ----
-  const fetchCommonIssues = () => {
-    fetch("/api/feedback/analytics")
-      .then((res) => res.json())
-      .then((data) => setRawCommonIssues(Array.isArray(data) ? data : []))
-      .catch(() => {
-        // do not crash UI if analytics fails
-        setRawCommonIssues([]);
-      });
-  };
-
   useEffect(() => {
     fetchFeedbacks();
-    fetchCommonIssues();
-  }, [statusFilter, currentPage, dateFilter, categoryFilter]);
-
-  // ---- normalize analytics so there are NEVER blank labels ----
-  const commonIssues = useMemo(() => {
-    const cleaned = (rawCommonIssues || [])
-      .map((row) => ({
-        issue: String(row.issue ?? row.message ?? "").trim(),
-        count: Number(row.count ?? 0),
-      }))
-      .filter((r) => r.count > 0)
-      .map((r) => ({
-        issue: r.issue.length ? r.issue : "(other)",
-        count: r.count,
-      }))
-      // show top 8 max
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
-
-    return cleaned;
-  }, [rawCommonIssues]);
+  }, [statusFilter, currentPage, dateFilter]);
 
   // ---- pie data for this page ----
   const pieData = useMemo(() => {
@@ -157,7 +184,6 @@ function Feedback() {
       if (res.ok) {
         showToast("Feedback deleted!", "success");
         fetchFeedbacks();
-        fetchCommonIssues(); // keep analytics in sync
       } else {
         showToast("Failed to delete feedback.", "error");
       }
@@ -175,7 +201,6 @@ function Feedback() {
       if (res.ok) {
         showToast("Marked as resolved!", "success");
         fetchFeedbacks();
-        fetchCommonIssues();
       } else {
         showToast("Failed to mark as resolved.", "error");
       }
@@ -199,6 +224,7 @@ function Feedback() {
       });
       if (res.ok) {
         showToast("Reply sent!", "success");
+        setReplyModalOpen(false);
         setReplyingId(null);
         setReplyText("");
         fetchFeedbacks();
@@ -268,20 +294,6 @@ function Feedback() {
               {option.label}
             </option>
           ))}
-        </select>
-
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          style={{
-            padding: "8px 16px", borderRadius: 6, backgroundColor: "#263556", color: "#fff", fontSize: 16,
-            border: "1px solid #334155"
-          }}
-        >
-          <option value="">All Categories</option>
-          <option value="ac">AC</option>
-          <option value="payment">Payment</option>
-          <option value="security">Security</option>
         </select>
 
         <span style={{ color: "#9fb7e6", fontSize: 14 }}>
@@ -354,8 +366,13 @@ function Feedback() {
                   <td style={{ color: "#b4d2ff" }}>{String(fb.createdAt ?? "").replace("T", " ").slice(0, 19)}</td>
                   <td style={{ color: "#b4d2ff" }}>{String(fb.submittedAt ?? "").replace("T", " ").slice(0, 19)}</td>
                   <td style={{ color: "#17d3ec", fontWeight: 600 }}>
-                    {fb.reply ? (<span><span style={{ color: "#aee4ff", fontSize: 13, fontWeight: 400 }}>Replied:</span><br />{fb.reply}</span>) :
-                      (<span style={{ color: "#8889", fontStyle: "italic" }}>No reply</span>)}
+                    {fb.reply ? (
+                      <span>
+                        <span style={{ color: "#aee4ff", fontSize: 13, fontWeight: 400 }}>Replied:</span><br />{fb.reply}
+                      </span>
+                    ) : (
+                      <span style={{ color: "#8889", fontStyle: "italic" }}>No reply</span>
+                    )}
                   </td>
                   <td>
                     <span style={{
@@ -367,40 +384,21 @@ function Feedback() {
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 12 }}>
                       {fb.status === "open" && (
                         <button
-                          onClick={() => { setReplyingId(fb.id); setReplyText(""); }}
-                          disabled={replyingId === fb.id}
+                          onClick={() => { setReplyingId(fb.id); setReplyText(""); setReplyModalOpen(true); }}
+                          disabled={replyModalOpen && replyingId === fb.id}
                           style={{
                             padding: "7px 18px", borderRadius: 8, border: "none", background: "#0984e3",
                             color: "#fff", fontWeight: 700, fontSize: 15,
-                            cursor: replyingId === fb.id ? "not-allowed" : "pointer",
+                            cursor: replyModalOpen && replyingId === fb.id ? "not-allowed" : "pointer",
                             boxShadow: "0 1px 7px #0984e340"
                           }}
                           title="Reply"
                         >
                           <FaReply />
                         </button>
-                      )}
-                      {replyingId === fb.id && (
-                        <div>
-                          <textarea
-                            style={{
-                              width: "100%", minHeight: "100px", borderRadius: "8px", padding: "10px", marginTop: "8px",
-                              background: "#263556", color: "#fff"
-                            }}
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            placeholder="Write your reply here..."
-                          />
-                          <button
-                            style={{ background: "#0984e3", color: "#fff", padding: "8px 20px", borderRadius: "6px", marginTop: "8px", cursor: "pointer" }}
-                            onClick={() => handleReply(fb.id)}
-                          >
-                            Submit Reply
-                          </button>
-                        </div>
                       )}
 
                       {(fb.status === "open" || fb.status === "replied") && (
@@ -449,47 +447,18 @@ function Feedback() {
         </div>
       )}
 
-      {/* Charts */}
-      <div style={{ marginTop: "2rem", maxWidth: 800, width: "100%" }}>
-        <h3 style={{ color: "#7dbbff", fontWeight: 800, fontSize: 25, marginBottom: 12 }}>
-          Most Common Feedback Issues
-        </h3>
-        <ResponsiveContainer width="100%" height={340}>
-          <BarChart data={commonIssues} layout="vertical" margin={{ left: 10, right: 20 }}>
-            <CartesianGrid strokeDasharray="4 4" />
-            <XAxis type="number" allowDecimals={false} />
-            <YAxis
-              type="category"
-              dataKey="issue"
-              width={160}
-              tick={{ fill: "#cbe4ff", fontSize: 16, fontWeight: 600 }}
-            />
-            <Tooltip content={<IssueTooltip />} />
-            <Bar dataKey="count" fill="#2492fa" radius={[10, 10, 10, 10]}>
-              <LabelList dataKey="count" position="right" fill="#fff" fontWeight={700} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-
-        <h3 style={{ color: "#7dbbff", fontWeight: 800, fontSize: 25, marginTop: 28, marginBottom: 12 }}>
-          Feedback Status (This Page)
-        </h3>
-        <ResponsiveContainer width="100%" height={320}>
-          <PieChart>
-            <Pie data={pieData} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={100} fill="#2492fa" label>
-              {pieData.map((_, idx) => (
-                <Cell key={idx} fill={idx % 2 === 0 ? "#00c853" : "#f44336"} />
-              ))}
-            </Pie>
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-
       <Toast
         message={toast.message}
         type={toast.type}
         onClose={() => setToast({ message: "", type: "info" })}
+      />
+
+      <ReplyModal
+        open={replyModalOpen}
+        onClose={() => setReplyModalOpen(false)}
+        onSubmit={() => handleReply(replyingId)}
+        value={replyText}
+        onChange={setReplyText}
       />
     </div>
   );

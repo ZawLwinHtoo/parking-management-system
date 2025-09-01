@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 
+const EMAIL_PATTERN = "^[^@\\s]+@(gmail\\.com|yahoo\\.com|hotmail\\.com)$";
+const PHONE_PATTERN = "^\\+?[1-9]\\d{7,14}$";
+
 export default function AdminProfile() {
   const [form, setForm] = useState({
     username: "",
@@ -14,6 +17,7 @@ export default function AdminProfile() {
   const [success, setSuccess] = useState(false);
   const [preview, setPreview] = useState("");
   const inputFileRef = useRef();
+  const formRef = useRef(null); // for HTML5 validity checks
 
   // Load user data on mount
   useEffect(() => {
@@ -84,16 +88,30 @@ export default function AdminProfile() {
   // Edit profile
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // HTML5 validation (uses the pattern/required on inputs)
+    if (formRef.current && !formRef.current.checkValidity()) {
+      formRef.current.reportValidity();
+      return;
+    }
+
     const user = JSON.parse(localStorage.getItem("user"));
+    const payload = {
+      ...form,
+      email: String(form.email || "").trim().toLowerCase(),
+      phone: String(form.phone || "").trim(),
+      // role stays whatever is already in state (field is disabled)
+    };
+
     const res = await fetch(`/api/users/${user.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 1800);
-      const newUser = { ...user, ...form };
+      const newUser = { ...user, ...payload };
       localStorage.setItem("user", JSON.stringify(newUser));
     }
   };
@@ -123,17 +141,9 @@ export default function AdminProfile() {
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={avatarWrapperStyle}>
             {preview ? (
-              <img
-                src={preview}
-                alt="Preview"
-                style={avatarImgStyle}
-              />
+              <img src={preview} alt="Preview" style={avatarImgStyle} />
             ) : profileImageUrl ? (
-              <img
-                src={profileImageUrl}
-                alt="Profile"
-                style={avatarImgStyle}
-              />
+              <img src={profileImageUrl} alt="Profile" style={avatarImgStyle} />
             ) : (
               <span style={avatarInitialsStyle}>{initials}</span>
             )}
@@ -172,20 +182,51 @@ export default function AdminProfile() {
             </button>
           </div>
         </div>
+
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <form ref={formRef} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <FormInput label="Username" name="username" value={form.username} onChange={handleChange} />
+
           <FormInput label="Full Name" name="fullName" value={form.fullName} onChange={handleChange} />
-          <FormInput label="Email" name="email" value={form.email} onChange={handleChange} />
-          <FormInput label="Phone" name="phone" value={form.phone} onChange={handleChange} />
-          <FormInput label="Role" name="role" value={form.role} readOnly />
-          <button
-            type="submit"
-            style={submitBtnStyle}
-          >
+
+          {/* Email: only gmail/yahoo/hotmail */}
+          <FormInput
+            label="Email"
+            name="email"
+            type="email"
+            value={form.email}
+            onChange={handleChange}
+            required
+            pattern={EMAIL_PATTERN}
+            title="Use a gmail.com, yahoo.com, or hotmail.com address"
+          />
+
+          {/* Phone: 8–15 digits, optional leading + */}
+          <FormInput
+            label="Phone"
+            name="phone"
+            value={form.phone}
+            onChange={handleChange}
+            required
+            inputMode="numeric"
+            pattern={PHONE_PATTERN}
+            title="8–15 digits, optional leading +"
+          />
+
+          {/* Role: not editable */}
+          <FormInput
+            label="Role"
+            name="role"
+            value={form.role}
+            onChange={handleChange}
+            disabled
+          />
+
+          <button type="submit" style={submitBtnStyle}>
             Save Changes
           </button>
         </form>
+
         {success && (
           <div style={{ color: "lime", marginTop: 13, textAlign: "center" }}>
             Profile updated!
@@ -197,11 +238,21 @@ export default function AdminProfile() {
 }
 
 // --- Reusable Input Component ---
-function FormInput({ label, ...props }) {
+function FormInput({ label, style, disabled, readOnly, ...props }) {
   return (
     <div>
       <b style={{ fontWeight: 500 }}>{label}</b>
-      <input {...props} style={inputStyle} autoComplete="off" />
+      <input
+        {...props}
+        disabled={disabled}
+        readOnly={readOnly}
+        autoComplete="off"
+        style={{
+          ...inputStyle,
+          ...(disabled || readOnly ? disabledInputStyle : {}),
+          ...style,
+        }}
+      />
     </div>
   );
 }
@@ -331,4 +382,11 @@ const inputStyle = {
   color: "#fff",
   outline: "none",
   marginBottom: 0,
+};
+
+const disabledInputStyle = {
+  background: "#1f2436",
+  borderColor: "#3c4a71",
+  color: "#9aa7c3",
+  cursor: "not-allowed",
 };

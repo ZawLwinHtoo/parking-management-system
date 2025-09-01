@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.*;
 import java.util.*;
 
 @Service
@@ -22,14 +23,40 @@ public class FeedbackService {
     // Fetch feedbacks with pagination and status filtering
     public PageResponse<Feedback> getFeedbacksByStatusWithPagination(String status, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
-        Page<Feedback> p = "all".equalsIgnoreCase(status)
-                ? feedbackRepository.findAll(pageable)
-                : feedbackRepository.findByStatus(status, pageable);
+        Page<Feedback> p;
+
+        // If status is 'all', fetch all feedbacks without filtering by status.
+        if ("all".equalsIgnoreCase(status)) {
+            p = feedbackRepository.findAll(pageable);
+        } else {
+            p = feedbackRepository.findByStatus(status, pageable);
+        }
 
         return new PageResponse<>(
                 p.getContent(),
                 p.getTotalElements(),
                 p.getTotalPages(),
+                page,
+                size
+        );
+    }
+
+    // Fetch feedbacks with status and date range filtering
+    public PageResponse<Feedback> getFeedbacksByDateFilterAndStatus(String status, LocalDateTime start, LocalDateTime end, int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+
+        Page<Feedback> feedbackPage;
+        
+        if ("all".equalsIgnoreCase(status)) {
+            feedbackPage = feedbackRepository.findByCreatedAtBetween(start, end, pageable); // No status filter for 'all'
+        } else {
+            feedbackPage = feedbackRepository.findByStatusAndCreatedAtBetween(status, start, end, pageable);
+        }
+
+        return new PageResponse<>(
+                feedbackPage.getContent(),
+                feedbackPage.getTotalElements(),
+                feedbackPage.getTotalPages(),
                 page,
                 size
         );

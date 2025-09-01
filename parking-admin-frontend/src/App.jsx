@@ -13,29 +13,45 @@ import Profile from "./components/AdminProfile"; // Adjust path as needed
 // --- Avatar display in top right ---
 function TopRightAvatar() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const [isOpen, setIsOpen] = useState(false); // Track dropdown visibility
+
   const avatarUrl = user.profileImage
     ? user.profileImage.startsWith("http")
       ? user.profileImage
       : user.profileImage
     : "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.fullName || user.username || "Admin");
+
+  // Toggle dropdown visibility
+  const toggleDropdown = () => setIsOpen(!isOpen);
+
   return (
-    <div style={{
-      position: "absolute",
-      right: 44,
-      top: 24,
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      zIndex: 99
-    }}>
+    <div style={{ position: "absolute", right: 44, top: 24, display: "flex", alignItems: "center", gap: 12, zIndex: 99 }}>
+      {/* Avatar image */}
       <img
         src={avatarUrl}
         alt="avatar"
+        onClick={toggleDropdown}  // Toggle dropdown on click
         style={{
           width: 46, height: 46, borderRadius: "50%", objectFit: "cover",
-          border: "2.5px solid #4b8bfd", boxShadow: "0 1px 8px #2227"
+          border: "2.5px solid #4b8bfd", boxShadow: "0 1px 8px #2227", cursor: "pointer"
         }}
       />
+
+      {/* Dropdown menu */}
+      {isOpen && (
+        <div style={{
+          position: "absolute", top: "60px", right: "0", background: "#2d3540", borderRadius: 8, boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)", minWidth: "150px", zIndex: 1000, padding: "10px", color: "#fff"
+        }}>
+          <div style={{ padding: "8px", cursor: "pointer", borderBottom: "1px solid #333", textAlign: "center" }}>
+            <strong>Signed in as {user.username}</strong>
+          </div>
+          <div style={{ padding: "8px", cursor: "pointer", borderBottom: "1px solid #333", textAlign: "center" }} onClick={() => window.location.href = "/profile"}>Profile</div>
+          <div style={{ padding: "8px", cursor: "pointer", textAlign: "center", color: "red" }} onClick={() => {
+            localStorage.removeItem("user");
+            window.location.reload();
+          }}>Logout</div>
+        </div>
+      )}
     </div>
   );
 }

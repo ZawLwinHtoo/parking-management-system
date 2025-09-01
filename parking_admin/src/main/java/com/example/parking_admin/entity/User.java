@@ -19,14 +19,16 @@ public class User {
     private String email;
     private String password;
     private String role; // e.g. "admin"
-    private String phone; // <-- Add this field
+
+    private String phone;
+
     @Column(name = "full_name")
     private String fullName;
 
     @Column(name = "profile_image")
     private String profileImage;
 
-    // Getters and Setters
+    // Explicit getters/setters (kept since you already had them)
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -44,17 +46,10 @@ public class User {
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
-    
+
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
 
-    public String getProfileImage() {
-        return profileImage;
-    }
-
-    public void setProfileImage(String profileImage) {
-        this.profileImage = profileImage;
-    }
-
+    public String getProfileImage() { return profileImage; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
 }
-    

@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 const API_URL = "/api/users";
+
+// Allowed domains for email
+const ALLOWED_DOMAINS = ["gmail.com", "yahoo.com", "hotmail.com"];
+const emailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phoneFormat = /^\+?[1-9]\d{7,14}$/;
+
+// Patterns for native validation (match our JS rules)
+const emailPattern = "^[^@\\s]+@(gmail\\.com|yahoo\\.com|hotmail\\.com)$";
+const phonePattern = "^\\+?[1-9]\\d{7,14}$";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -17,6 +26,40 @@ export default function Users() {
     profile_image: ""
   });
   const [error, setError] = useState("");
+  const [touched, setTouched] = useState({});
+
+  // ---------- validation helpers ----------
+  const validate = (values) => {
+    const errs = {};
+    const email = String(values.email || "").trim().toLowerCase();
+    const phone = String(values.phone || "").trim();
+
+    if (email.length) {
+      if (!emailFormat.test(email)) {
+        errs.email = "Invalid email format";
+      } else {
+        const domain = email.split("@")[1];
+        if (!ALLOWED_DOMAINS.some(d => domain === d || domain.endsWith("." + d))) {
+          errs.email = `Email must be: ${ALLOWED_DOMAINS.join(", ")}`;
+        }
+      }
+    } else {
+      errs.email = "Email is required";
+    }
+
+    if (phone.length) {
+      if (!phoneFormat.test(phone)) {
+        errs.phone = "Phone must be 8–15 digits (optional leading +)";
+      }
+    } else {
+      errs.phone = "Phone is required";
+    }
+
+    return errs;
+  };
+
+  const errors = useMemo(() => validate(form), [form]);
+  const isFormValid = Object.keys(errors).length === 0;
 
   useEffect(() => {
     fetch(API_URL)
@@ -36,16 +79,35 @@ export default function Users() {
   const handleChange = e =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
+  const handleBlur = e =>
+    setTouched(t => ({ ...t, [e.target.name]: true }));
+
   const handleSubmit = async e => {
     e.preventDefault();
     setError("");
+
+    // client-side validation
+    const v = validate(form);
+    if (Object.keys(v).length > 0) {
+      setTouched({ email: true, phone: true });
+      return;
+    }
+
     try {
       const method = editing ? "PUT" : "POST";
       const url = editing ? `${API_URL}/${editing.id}` : API_URL;
+
+      // trim email/phone before sending
+      const payload = {
+        ...form,
+        email: String(form.email || "").trim(),
+        phone: String(form.phone || "").trim(),
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Request failed");
       const user = await res.json();
@@ -75,26 +137,13 @@ export default function Users() {
     setForm({
       username: user.username,
       password: "",
-      role: user.role,
+      role: user.role, // The role remains the same during edit, cannot be changed
       fullName: user.fullName || "",
       email: user.email || "",
       phone: user.phone || "",
       profile_image: user.profile_image || ""
     });
-    setShowForm(true);
-  };
-
-  const handleAdd = () => {
-    setEditing(null);
-    setForm({
-      username: "",
-      password: "",
-      role: "user",
-      fullName: "",
-      email: "",
-      phone: "",
-      profile_image: ""
-    });
+    setTouched({});
     setShowForm(true);
   };
 
@@ -114,6 +163,7 @@ export default function Users() {
       phone: "",
       profile_image: ""
     });
+    setTouched({});
   };
 
   // ---- Styles ----
@@ -195,12 +245,11 @@ export default function Users() {
     boxShadow: "0 2px 8px #fa525226",
     transition: "background 0.15s, box-shadow 0.13s",
   };
-  const inputStyle = {
+  const inputBase = {
     margin: "6px 0 16px 0",
     padding: 13,
     fontSize: 16.5,
     borderRadius: 8,
-    border: "1.4px solid #4851b8",
     background: "#212336",
     color: "#eaf0ff",
     width: "100%",
@@ -208,13 +257,28 @@ export default function Users() {
     outline: "none",
     transition: "border 0.17s"
   };
+  const inputStyle = {
+    ...inputBase,
+    border: "1.4px solid #4851b8",
+  };
+  const inputErrorStyle = {
+    ...inputBase,
+    border: "1.6px solid #fa5252",
+    boxShadow: "0 0 0 2px rgba(250,82,82,0.15)"
+  };
+  const errorText = {
+    color: "#ff6b6b",
+    fontSize: 13.5,
+    marginTop: -10,
+    marginBottom: 8
+  };
   const formStyle = {
     background: glassBg,
     borderRadius: 17,
     padding: 32,
     display: "flex",
     flexDirection: "column",
-    gap: 14,
+    gap: 6,
     width: 380,
     boxShadow: "0 4px 44px #232e5040",
     border: "1.5px solid #4263eb30",
@@ -241,15 +305,6 @@ export default function Users() {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <button
-          style={{
-            ...actionBtn,
-            padding: "10px 28px",
-            borderRadius: 10,
-            fontSize: 16.5
-          }}
-          onClick={handleAdd}
-        >Add User</button>
         {error && <div style={{ color: "#fa5252", marginLeft: 14 }}>{error}</div>}
       </div>
 
@@ -269,16 +324,7 @@ export default function Users() {
           </thead>
           <tbody>
             {filtered.map(user => (
-              <tr
-                key={user.id}
-                style={{
-                  background: "transparent",
-                  transition: "background 0.16s",
-                  borderRadius: 13,
-                  boxShadow: "none"
-                }}
-                className="user-row"
-              >
+              <tr key={user.id}>
                 <td style={{ ...tdStyle, paddingLeft: 22 }}>{user.id}</td>
                 <td style={tdStyle}>{user.username}</td>
                 <td style={{
@@ -312,11 +358,21 @@ export default function Users() {
           backdropFilter: "blur(2px)",
           animation: "fadein .22s"
         }}>
-          <form onSubmit={handleSubmit} style={formStyle}>
+          <form onSubmit={handleSubmit} noValidate style={formStyle}>
             <h3 style={{ color: "#fff", marginBottom: 13, fontWeight: 800 }}>
               {editing ? "Edit User" : "Add User"}
             </h3>
-            <input style={inputStyle} name="username" placeholder="Username" value={form.username} onChange={handleChange} required />
+
+            <input
+              style={inputStyle}
+              name="username"
+              placeholder="Username"
+              value={form.username}
+              onChange={handleChange}
+              required
+              onBlur={handleBlur}
+            />
+
             {!editing && (
               <input
                 style={inputStyle}
@@ -327,42 +383,71 @@ export default function Users() {
                 onChange={handleChange}
                 minLength={3}
                 required
+                onBlur={handleBlur}
               />
             )}
-            <select style={inputStyle} name="role" value={form.role} onChange={handleChange}>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
-            </select>
-            <input style={inputStyle} name="fullName" placeholder="Full Name" value={form.fullName} onChange={handleChange} />
-            <input style={inputStyle} name="email" placeholder="Email" value={form.email} onChange={handleChange} />
-            <input style={inputStyle} name="phone" placeholder="Phone" value={form.phone} onChange={handleChange} />
+
+            {/* Disabled role field during editing */}
+            <input
+              style={inputStyle}
+              name="role"
+              value={form.role} // Disable role selection
+              disabled // Prevent changing the role when editing
+            />
+
+            <input
+              style={inputStyle}
+              name="fullName"
+              placeholder="Full Name"
+              value={form.fullName}
+              onChange={handleChange}
+              onBlur={handleBlur}
+            />
+
+            {/* Email */}
+            <input
+              style={touched.email && errors.email ? inputErrorStyle : inputStyle}
+              type="email"
+              name="email"
+              placeholder="Email (gmail.com, yahoo.com, hotmail.com)"
+              value={form.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              required
+              pattern={emailPattern}
+              title={`Allowed domains: ${ALLOWED_DOMAINS.join(", ")}`}
+            />
+            {touched.email && errors.email && (
+              <div style={errorText}>{errors.email}</div>
+            )}
+
+            {/* Phone */}
+            <input
+              style={touched.phone && errors.phone ? inputErrorStyle : inputStyle}
+              name="phone"
+              placeholder="Phone (8–15 digits, optional +)"
+              value={form.phone}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              inputMode="numeric"
+              required
+              pattern={phonePattern}
+              title="8–15 digits, optional leading +"
+            />
+            {touched.phone && errors.phone && (
+              <div style={errorText}>{errors.phone}</div>
+            )}
+
             <div style={{ display: "flex", gap: 13, marginTop: 8 }}>
-              <button style={actionBtn} type="submit">{editing ? "Update" : "Add"}</button>
+              <button style={actionBtn} type="submit" disabled={!isFormValid}>
+                {editing ? "Update" : "Add"}
+              </button>
               <button style={deleteBtn} type="button" onClick={handleCancel}>Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Table row hover effect */}
-      <style>
-        {`
-          .user-row:hover {
-            background: rgba(51, 61, 95, 0.19);
-          }
-          @media (max-width: 900px) {
-            table, thead, tbody, th, td, tr {
-              font-size: 15px !important;
-            }
-            .user-row td {
-              padding: 8px 10px !important;
-            }
-            .user-row th {
-              padding: 11px 10px !important;
-            }
-          }
-        `}
-      </style>
     </div>
   );
 }

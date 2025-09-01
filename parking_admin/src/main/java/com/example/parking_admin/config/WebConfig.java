@@ -1,3 +1,4 @@
+// WebConfig.java
 package com.example.parking_admin.config;
 
 import org.springframework.context.annotation.Configuration;
@@ -10,16 +11,16 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:3001") // Your Vite frontend
+        registry.addMapping("/api/**") // <-- Fix: allow all routes under /api
+                .allowedOrigins("http://localhost:3001") // Your frontend URL
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
 
-     @Override
-     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-         registry.addResourceHandler("/uploads/**")
-                 .addResourceLocations("file:C:/Some/Absolute/Folder/"); // <-- Replace with your actual folder
-     }
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/uploads/")
+                .addResourceLocations("file:C:/Some/Absolute/Folder/"); // Replace with your folder
+    }
 }

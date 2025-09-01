@@ -51,10 +51,7 @@ export default function AboutPage() {
                   <h4 className="text-light fw-bold mb-3">About Us</h4>
                   <ul className="text-secondary m-0 ps-3" style={{ lineHeight: 1.8 }}>
                     <li>
-                      Lorem ipsum dolor sit amet consectetur adipisicing elit. Mollitia maxime
-                      blanditiis animi cupiditate velit, voluptates enim eaque magni neque? Nihil
-                      dolores explicabo non nesciunt molestiae dolorem nostrum voluptatum illum
-                      consectetur?
+                      SPARK (Smart Parking & Access Resource Kit) is dedicated to transforming the parking experience. Our platform offers drivers a seamless way to find, reserve, and manage parking spaces in real-time. By combining innovative technology with user-friendly features, SPARK provides fast, reliable, and secure solutions, from instant bookings to one-time entry codes, transparent pricing, and downloadable receipts. Whether you’re commuting, attending events, or traveling, SPARK makes parking effortless and accessible.
                     </li>
                   </ul>
                 </div>
@@ -74,10 +71,7 @@ export default function AboutPage() {
                   <h4 className="text-light fw-bold mb-3">How It Works</h4>
                   <ul className="text-secondary m-0 ps-3" style={{ lineHeight: 1.8 }}>
                     <li>
-                      Lorem ipsum dolor sit amet consectetur adipisicing elit. Recusandae, excepturi
-                      corrupti quae fugiat fuga quam voluptatibus rem, possimus est similique
-                      perferendis distinctio iusto hic aliquam expedita porro tempore sapiente
-                      quidem!
+                      SPARK makes parking easy and efficient. Simply search for available parking spaces in your chosen location, reserve a spot with just a few taps, and get a one-time entry code to access your parking space. Payments are handled securely through the app, and after your session, you can instantly download your receipt. SPARK’s streamlined process is designed to save you time and simplify the entire parking experience, making it easier than ever to park smart.
                     </li>
                   </ul>
                 </div>

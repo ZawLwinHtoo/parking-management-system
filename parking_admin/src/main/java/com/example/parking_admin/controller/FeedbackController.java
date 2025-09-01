@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.*;
 import java.util.*;
 
 @RestController
@@ -20,14 +21,41 @@ public class FeedbackController {
         this.feedbackService = feedbackService;
     }
 
-    // GET /api/feedback?status=all|open|resolved|replied&page=1&size=5
+    // GET /api/feedback?status=all|open|resolved|replied&page=1&size=5&dateFilter=all|today|this_week|this_month
     @GetMapping
     public ResponseEntity<PageResponse<Feedback>> getFeedbacks(
             @RequestParam(defaultValue = "all") String status,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "5") int size
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "all") String dateFilter
     ) {
-        return ResponseEntity.ok(feedbackService.getFeedbacksByStatusWithPagination(status, page, size));
+        // Get the date range based on the filter
+        LocalDateTime startDate = null;
+        LocalDateTime endDate = LocalDateTime.now();
+
+        switch (dateFilter.toLowerCase()) {
+            case "today":
+                startDate = LocalDateTime.now().toLocalDate().atStartOfDay();
+                break;
+            case "this_week":
+                startDate = LocalDateTime.now().with(DayOfWeek.MONDAY).toLocalDate().atStartOfDay();
+                break;
+            case "this_month":
+                startDate = LocalDateTime.now().withDayOfMonth(1).toLocalDate().atStartOfDay();
+                break;
+            case "all":
+            default:
+                // No start date, get all feedbacks
+                startDate = LocalDateTime.MIN;
+                break;
+        }
+
+        // Fetch the feedbacks with the date filter
+        if ("all".equalsIgnoreCase(status)) {
+            return ResponseEntity.ok(feedbackService.getFeedbacksByDateFilterAndStatus(status, startDate, endDate, page, size));
+        } else {
+            return ResponseEntity.ok(feedbackService.getFeedbacksByDateFilterAndStatus(status, startDate, endDate, page, size));
+        }
     }
 
     // GET /api/feedback/{id}

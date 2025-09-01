@@ -23,6 +23,6 @@ public class UserMapper {
         if (dto.getEmail() != null) user.setEmail(dto.getEmail());
         if (dto.getPhone() != null) user.setPhone(dto.getPhone());
         if (dto.getProfileImage() != null) user.setProfileImage(dto.getProfileImage());
-        // Do NOT update password or role here unless you intend to allow it!
+        // Intentionally NOT changing role or password here.
     }
 }
