@@ -19,7 +19,8 @@ export default function ProfilePage() {
 
   const b64ToDataUrl = (b64) => (b64 ? `data:image/*;base64,${b64}` : null);
 
-  const phoneRegex = /^09\d{9}$/;  // Regular expression for phone number validation
+  // EXACTLY: 09 + 9 digits = 11 total
+  const phoneRegex = /^09\d{9}$/;
 
   // Load profile
   useEffect(() => {
@@ -38,6 +39,21 @@ export default function ProfilePage() {
   // Handlers
   const onChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "phone") {
+      // keep digits only, hard-cap to 11
+      const digits = value.replace(/\D/g, "").slice(0, 11);
+      setForm((p) => ({ ...p, phone: digits }));
+      setChanged(true);
+      // live error UX (optional)
+      if (digits && !phoneRegex.test(digits)) {
+        setError("Phone must start with 09 and be 11 digits.");
+      } else {
+        setError("");
+      }
+      return;
+    }
+
     setForm((p) => ({ ...p, [name]: value }));
     setChanged(true);
   };
@@ -45,14 +61,9 @@ export default function ProfilePage() {
   const onFileChange = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      setError("Please select an image file.");
-      return;
-    }
-    if (f.size > 2 * 1024 * 1024) {
-      setError("Image is too large. Max 2 MB.");
-      return;
-    }
+    if (!f.type.startsWith("image/")) return setError("Please select an image file.");
+    if (f.size > 2 * 1024 * 1024) return setError("Image is too large. Max 2 MB.");
+
     setError("");
     setFile(f);
     setPreview(URL.createObjectURL(f));
@@ -73,9 +84,9 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!userId) return;
 
-    // Phone validation before submit
+    // Validate phone before submit
     if (!phoneRegex.test(form.phone)) {
-      setError("Please enter a valid phone number starting with 09 and containing 9 digits.");
+      setError("Phone must start with 09 and be 11 digits (e.g., 09691950162).");
       return;
     }
 
@@ -125,6 +136,7 @@ export default function ProfilePage() {
           <div style={containerStyle}>
             <h1 style={titleStyle}>Edit Profile</h1>
 
+            {/* Avatar */}
             <div style={{ textAlign: "center", marginBottom: 24 }}>
               <div style={avatarWrapperStyle}>
                 {preview ? (
@@ -142,35 +154,35 @@ export default function ProfilePage() {
                   onChange={onFileChange}
                   style={{ display: "none" }}
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  style={browseBtnStyle}
-                >
+                <button type="button" onClick={() => fileInputRef.current?.click()} style={browseBtnStyle}>
                   Browse…
                 </button>
-                {file && (
-                  <span style={{ color: "#aaa", fontSize: 13, marginLeft: 7 }}>{file.name}</span>
-                )}
+                {file && <span style={{ color: "#aaa", fontSize: 13, marginLeft: 7 }}>{file.name}</span>}
               </div>
               <div className="text-secondary small" style={{ color: "#9aa3b2", fontSize: 12 }}>
                 JPG/PNG, max 2&nbsp;MB. Square images look best.
               </div>
             </div>
 
+            {/* Form */}
             <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <Labeled value={user?.username || ""} label="Username" readOnly />
               <TextInput name="fullName" value={form.fullName} onChange={onChange} label="Full Name" placeholder="Your full name" />
               <Labeled value={user?.email || ""} label="Email" readOnly />
+
               <TextInput
                 name="phone"
                 value={form.phone}
                 onChange={onChange}
                 label="Phone"
-                placeholder="e.g. 09-xxxxxxx"
+                placeholder="09691950162"
                 pattern="^09\d{9}$"
-                title="Phone number must be in the format: 09xxxxxxxxx"
+                inputMode="numeric"
+                maxLength={11}
+                title="Must start with 09 and be 11 digits (e.g., 09691950162)"
+                required
               />
+
               <Labeled value={user?.role || ""} label="Role" readOnly />
 
               {error && <div style={{ color: "#ff6b6b", marginTop: 4, textAlign: "center" }}>{error}</div>}
@@ -211,7 +223,7 @@ function Labeled({ label, value, readOnly }) {
   );
 }
 
-/* Styles */
+/* Styles (unchanged) */
 const inputStyle = {
   width: "100%",
   marginTop: 7,
@@ -224,7 +236,6 @@ const inputStyle = {
   outline: "none",
 };
 
-// Add these missing styles:
 const pageBgStyle = {
   width: "100%",
   minHeight: "calc(100vh - 48px)",
@@ -335,4 +346,3 @@ const secondaryBtnStyle = {
   flex: "0 0 auto",
   width: "50%",
 };
-
