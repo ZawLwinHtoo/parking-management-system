@@ -397,7 +397,6 @@ export default function Slots() {
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Slot Number</th>
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Type</th>
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Floor</th>
-              <th style={{ padding: "13px 20px", fontWeight: 800 }}>Location</th>
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Occupied</th>
               <th style={{ padding: "13px 20px", fontWeight: 800 }}>Actions</th>
             </tr>
@@ -414,7 +413,6 @@ export default function Slots() {
                 <td style={{ padding: "11px 20px" }}>{slot.slotNumber}</td>
                 <td style={{ padding: "11px 20px" }}>{slot.slotType}</td>
                 <td style={{ padding: "11px 20px" }}>{getFloor(slot)}</td>
-                <td style={{ padding: "11px 20px" }}>{slot.location}</td>
                 <td style={{ padding: "11px 20px" }}>
                   {slot.isOccupied ? <span style={{ color: "limegreen" }}>✔️</span> : <span style={{ color: "#fa5252" }}>❌</span>}
                 </td>

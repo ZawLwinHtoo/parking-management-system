@@ -232,7 +232,7 @@ export default function AdminSessions() {
                   <td style={tdStyle}>{s.carNumber}</td>
                   <td style={tdStyle}>{s.entryTime ? new Date(s.entryTime).toLocaleString() : ""}</td>
                   <td style={tdStyle}>{s.exitTime ? new Date(s.exitTime).toLocaleString() : ""}</td>
-                  <td style={tdStyle}>{s.fee || "-"}</td>
+                  <td style={tdStyle}>{s.fee === 0 ? "0" : s.fee || ""}</td>
                   <td style={tdStyle}>
                     <button
                       style={{
