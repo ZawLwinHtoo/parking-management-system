@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 import json
+import base64
 import socket
 import sys
 import unittest
@@ -65,6 +66,25 @@ class DemoWorkflow(unittest.TestCase):
                 self.assertFalse(next(slot for slot in available if slot['id']==slots[0]['id'])['occupied'])
                 # Admin sees the same buildings after a customer completes parking.
                 self.assertEqual(request(admin,'/api/buildings')[1][0]['name'],buildings[0]['name'])
+                status,managed=request(admin,'/api/users',{'username':'managed-admin','password':'DemoManage123!','role':'admin','fullName':'Managed Admin','email':'parking.recovery.test@gmail.com'})
+                self.assertEqual(status,200,managed)
+                self.assertEqual(request(admin,'/api/login',{'username':'managed-admin','password':'DemoManage123!'})[0],200)
+                picture=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=')
+                def upload(service,path):
+                    boundary='parking-profile-test'
+                    body=(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="../../avatar.png"\r\nContent-Type: image/png\r\n\r\n'.encode()+picture+f'\r\n--{boundary}--\r\n'.encode())
+                    req=Request(f'http://127.0.0.1:{service}'+path,data=body,headers={'Content-Type':'multipart/form-data; boundary='+boundary})
+                    with urlopen(req,timeout=10) as result:
+                        raw=result.read().decode()
+                        try: return json.loads(raw)
+                        except ValueError: return raw
+                admin_url=upload(admin,f'/api/users/{managed["id"]}/upload-profile-image')
+                customer_url=upload(user,'/api/upload')['url']
+                for service,image_url in [(admin,admin_url),(user,customer_url)]:
+                    self.assertNotIn('avatar',image_url)
+                    with urlopen(f'http://127.0.0.1:{service}'+image_url,timeout=10) as result:
+                        self.assertEqual(result.read(),picture)
+                        self.assertEqual(result.headers.get_content_type(),'image/png')
             except BaseException:
                 for log in (Path(folder)/'logs').glob('*.log'):
                     print(log.name,log.read_text(encoding='utf-8',errors='replace')[-7000:])

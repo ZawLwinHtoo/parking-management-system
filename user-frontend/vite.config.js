@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/uploads': {target: process.env.VITE_USER_API_TARGET || 'http://127.0.0.1:8080', changeOrigin:true},
       '/api': {target: process.env.VITE_USER_API_TARGET || 'http://127.0.0.1:8080', changeOrigin:true}
     }
   }

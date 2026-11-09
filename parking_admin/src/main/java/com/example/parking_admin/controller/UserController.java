@@ -29,7 +29,9 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
-    private static final String PROFILE_IMAGES_DIR = "C:/Users/ZL_sht_H/Photo/profile_images/";
+    @org.springframework.beans.factory.annotation.Value("${upload.dir:./uploads}")
+    private String profileImagesDir;
+    private final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder passwordEncoder = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
 
     @GetMapping
     public List<UserDto> getAllUsers() {
@@ -51,9 +53,9 @@ public class UserController {
         User user = new User();
         UserMapper.updateEntity(user, userDto);
 
-        // If a password was provided, save it (plain here to keep logic unchanged).
+        // Use the same BCrypt format as the login service.
         if (userDto.getPassword() != null && !userDto.getPassword().isBlank()) {
-            user.setPassword(userDto.getPassword());
+            user.setPassword(passwordEncoder.encode(userDto.getPassword()));
         }
 
         user.setRole(userDto.getRole() != null ? userDto.getRole() : "user");
@@ -65,6 +67,7 @@ public class UserController {
         return userRepository.findById(id)
                 .map(user -> {
                     UserMapper.updateEntity(user, userDto);
+                    if(userDto.getPassword()!=null && !userDto.getPassword().isBlank()) user.setPassword(passwordEncoder.encode(userDto.getPassword()));
                     return ResponseEntity.ok(UserMapper.toDto(userRepository.save(user)));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -88,12 +91,18 @@ public class UserController {
         User user = userOpt.get();
 
         try {
-            File dir = new File(PROFILE_IMAGES_DIR);
-            if (!dir.exists()) dir.mkdirs();
-
-            String filename = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            File serverFile = new File(dir, filename);
-            file.transferTo(serverFile);
+            String extension = switch(String.valueOf(file.getContentType())) {
+                case "image/png" -> ".png";
+                case "image/jpeg" -> ".jpg";
+                case "image/webp" -> ".webp";
+                default -> null;
+            };
+            if(extension==null || file.isEmpty() || file.getSize()>5_000_000)
+                return ResponseEntity.badRequest().body("Choose a PNG, JPEG or WebP image smaller than 5 MB.");
+            Path dir=Paths.get(profileImagesDir).toAbsolutePath().normalize();
+            Files.createDirectories(dir);
+            String filename=java.util.UUID.randomUUID()+extension;
+            file.transferTo(dir.resolve(filename));
 
             String urlPath = "/api/users/profile-image/" + filename;
             user.setProfileImage(urlPath);
@@ -107,11 +116,13 @@ public class UserController {
 
     @GetMapping("/profile-image/{filename:.+}")
     public ResponseEntity<Resource> getProfileImage(@PathVariable String filename) throws IOException {
-        Path imgPath = Paths.get(PROFILE_IMAGES_DIR).resolve(filename);
+        Path dir=Paths.get(profileImagesDir).toAbsolutePath().normalize();
+        Path imgPath=dir.resolve(filename).normalize();
+        if(!imgPath.startsWith(dir)) return ResponseEntity.notFound().build();
         Resource file = new UrlResource(imgPath.toUri());
         if (!file.exists()) return ResponseEntity.notFound().build();
         return ResponseEntity.ok()
-                .header("Content-Type", Files.probeContentType(imgPath))
+                .header("Content-Type", filename.endsWith(".png")?"image/png":filename.endsWith(".webp")?"image/webp":"image/jpeg")
                 .body(file);
     }
 }
