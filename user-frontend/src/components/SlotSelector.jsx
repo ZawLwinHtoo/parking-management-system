@@ -6,7 +6,7 @@ export default function SlotSelector({ onSelect }) {
   const [selected, setSelected] = useState('')
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/slots/available')
+    axios.get('/api/slots/available')
       .then(res => setSlots(res.data))
       .catch(() => setSlots([]))
   }, [])

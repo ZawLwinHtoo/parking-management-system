@@ -28,6 +28,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public User register(UserRegistrationDto dto) {
+        if (dto.getUsername() == null || dto.getUsername().isBlank() || dto.getPassword() == null || dto.getPassword().length() < 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username and password (8+ characters) required");
+        }
+        if (userRepo.findByUsername(dto.getUsername()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
+        }
         User u = new User();
         u.setUsername(dto.getUsername());
         u.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -43,12 +49,6 @@ public class AuthServiceImpl implements AuthService {
         User u = userRepo.findByUsername(dto.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED, "Invalid username or password"));
-
-        // DEBUG LOGGING: show raw vs encoded
-        log.debug("Attempting login for {}: raw='{}', encoded='{}'",
-                dto.getUsername(),
-                dto.getPassword(),
-                u.getPassword());
 
         // Verify password
         if (!passwordEncoder.matches(dto.getPassword(), u.getPassword())) {

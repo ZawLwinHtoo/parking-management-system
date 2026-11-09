@@ -7,6 +7,9 @@ import java.util.Optional;
 import java.util.List;
 
 public interface SlotRepository extends JpaRepository<Slot, Integer> {
+    @Override
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<Slot> findById(Integer id);
     Optional<Slot> findFirstByIsOccupiedFalseAndSlotType(SlotType slotType);
     List<Slot> findByIsOccupiedFalse();
     List<Slot> findByIsOccupiedTrue();

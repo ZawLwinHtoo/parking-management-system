@@ -2,7 +2,7 @@
 import axios from 'axios'
 
 const parkingApi = axios.create({
-  baseURL: 'http://localhost:8080/api/parking',
+  baseURL: '/api/parking',
   headers: { 'Content-Type': 'application/json' }
 })
 

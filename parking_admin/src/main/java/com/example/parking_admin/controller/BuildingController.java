@@ -27,6 +27,7 @@ public class BuildingController {
     }
 
     @PostMapping
+    @org.springframework.transaction.annotation.Transactional
     public BuildingDto addBuilding(@RequestBody BuildingDto buildingDto) {
         if (buildingRepository.existsByNameIgnoreCase(buildingDto.getName())) {
             throw new RuntimeException("Building name already exists!");
