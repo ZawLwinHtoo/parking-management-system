@@ -62,7 +62,7 @@ class Demo:
             jars=[p for p in (ROOT/project/'target').glob('*.jar') if not p.name.endswith('.original')]
             if len(jars)!=1:
                 raise RuntimeError(f'Build {project} first')
-            self.spawn(project,[java,'-jar',str(jars[0]),'--spring.profiles.active=demo',f'--server.port={port}'],env=env,cwd=ROOT/project)
+            self.spawn(project,[java,'-jar',str(jars[0]),'--spring.profiles.active=demo',f'--server.port={port}',f'--upload.dir={self.data / project / "uploads"}'],env=env,cwd=ROOT/project)
             ready(port,self.processes[-1])
             # A bound Spring port precedes CommandLineRunner completion.
             if project=='user-backend':

@@ -17,6 +17,8 @@ The launcher builds both Java services with their Maven wrappers, installs both 
 - API ports: 8080 (customer), 8081 (admin). Database: 9123.
 - Ctrl+C stops only processes owned by the launcher. Database/logs persist in `.demo/`.
 
+Uploaded PNG/JPEG/WebP images are stored under `.demo/<service>/uploads/` and remain available after refresh. The server assigns filenames and accepts images up to 5 MB. Accounts created or given a new password through the admin interface use the same BCrypt format as login.
+
 Register, log in, choose Demo Garage and a free slot, enter a plate such as AA-1234, and submit. Verify the generated slot key. Checkout calculates the fee, releases the slot and records history. The first hour is free. Payments and physical gate access are simulated; no funds move.
 
 This is a local portfolio demo. Login credentials are hashed, but the legacy API uses client-supplied user IDs and a demo token rather than enforcing authenticated resource ownership. Keep it on loopback. Production deployment requires server-enforced authentication/authorization and real payment/gate integrations.

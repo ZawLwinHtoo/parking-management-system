@@ -21,11 +21,18 @@ public class FileUploadController {
     @PostMapping("/upload")
     public ResponseEntity<?> uploadProfileImage(@RequestParam("file") MultipartFile file) {
         try {
-            // Save the file in the local storage or cloud storage
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            Path path = Paths.get(uploadDir, fileName);
-            Files.createDirectories(path.getParent()); // Ensure directory exists
-            file.transferTo(path);
+            String extension=switch(String.valueOf(file.getContentType())) {
+                case "image/png" -> ".png";
+                case "image/jpeg" -> ".jpg";
+                case "image/webp" -> ".webp";
+                default -> null;
+            };
+            if(extension==null || file.isEmpty() || file.getSize()>5_000_000)
+                return ResponseEntity.badRequest().body("Choose a PNG, JPEG or WebP image smaller than 5 MB.");
+            String fileName=java.util.UUID.randomUUID()+extension;
+            Path folder=Paths.get(uploadDir).toAbsolutePath().normalize();
+            Files.createDirectories(folder);
+            file.transferTo(folder.resolve(fileName));
 
             // Return the file URL (change it accordingly if you use cloud storage)
             return ResponseEntity.status(HttpStatus.OK).body(new ImageUploadResponse("/uploads/" + fileName));

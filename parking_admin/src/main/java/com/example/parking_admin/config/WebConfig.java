@@ -8,6 +8,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+    @org.springframework.beans.factory.annotation.Value("${upload.dir:./uploads}")
+    private String uploadDir;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
@@ -20,7 +22,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/uploads/")
-                .addResourceLocations("file:C:/Some/Absolute/Folder/"); // Replace with your folder
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations(java.nio.file.Paths.get(uploadDir).toAbsolutePath().toUri().toString()+"/");
     }
 }
