@@ -11,6 +11,7 @@ public class Building {
     private Long id;
 
     private String name;
+    private Integer numberOfFloors = 3;
     private String location;
     private String address;
 

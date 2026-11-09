@@ -1,0 +1,10 @@
+**/node_modules/
+**/target/
+**/dist/
+**/__pycache__/
+.demo/
+**/uploads/
+test-results/
+playwright-report/
+.env
+*.log

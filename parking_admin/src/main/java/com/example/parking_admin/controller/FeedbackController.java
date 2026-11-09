@@ -12,7 +12,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/feedback")
-@CrossOrigin(origins = "http://localhost:3000") // Enable CORS for React frontend
+@CrossOrigin(origins = {"http://localhost:3001", "http://127.0.0.1:3001"}) // Enable CORS for React frontend
 public class FeedbackController {
 
     private final FeedbackService feedbackService;

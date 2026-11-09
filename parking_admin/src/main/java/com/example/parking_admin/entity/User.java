@@ -17,6 +17,7 @@ public class User {
 
     private String username;
     private String email;
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
     private String role; // e.g. "admin"
 
@@ -25,7 +26,7 @@ public class User {
     @Column(name = "full_name")
     private String fullName;
 
-    @Column(name = "profile_image")
+    @Column(name = "admin_profile_image")
     private String profileImage;
 
     // Explicit getters/setters (kept since you already had them)

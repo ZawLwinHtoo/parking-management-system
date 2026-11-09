@@ -44,11 +44,13 @@ public class ParkingServiceImpl implements ParkingService {
         }
 
         // Prevent double parking (return precise message)
-        if (parkedCarRepo.findByCarNumberAndExitTimeIsNull(req.getCarNumber()).isPresent()) {
+        if (parkedCarRepo.findByCarNumberAndExitTimeIsNull(raw).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Duplicated Car Number");
         }
 
         // 1) Find slot by ID
+        if(req.getUserId()==null || req.getSlotId()==null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"User and slot required");
         Slot slot = slotRepo.findById(req.getSlotId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Slot not found"));
 

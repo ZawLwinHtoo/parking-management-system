@@ -13,9 +13,9 @@ function SlotBox({ x, y, z, slot, selected, onClick, onHover, hovered }) {
   return (
     <mesh
       position={[x, y, z]}
-      onClick={() => (!slot.isOccupied && slot.isAvailable !== false) && onClick(slot.id)}
+      onClick={() => (!slot.isOccupied && !slot.occupied && slot.isAvailable !== false) && onClick(slot.id)}
       onPointerOver={e => {
-        if (!slot.isOccupied && slot.isAvailable !== false) document.body.style.cursor = "pointer";
+        if (!slot.isOccupied && !slot.occupied && slot.isAvailable !== false) document.body.style.cursor = "pointer";
         onHover(slot.id);
       }}
       onPointerOut={e => {
